@@ -536,9 +536,12 @@
     hint.style.display = 'none';
     drop.classList.remove('loaded-a','loaded-b');
     drop.classList.add('loaded-' + id);
-    // Hide standby overlay on first photo
+    // Hide standby overlay on first photo — sync across all screens
     const standby = document.getElementById('standby-overlay');
-    if (standby && !standby.classList.contains('hidden')) standby.classList.add('hidden');
+    if (standby && !standby.classList.contains('hidden')) {
+      standby.classList.add('hidden');
+      set(dbRef(db, 'standby'), false);
+    }
     badge.textContent = bytes ? fmtSize(bytes) : '';
     // Track download bandwidth once per unique URL per session
     if (url && bytes && !_counted.has(url)) {
@@ -625,6 +628,7 @@
       setStatus(id, '', 'Waiting…');
     });
     setManilaDate();
+    await set(dbRef(db, 'standby'), true);
     setTimeout(() => { clearing['a'] = false; clearing['b'] = false; }, 1500);
   };
 
@@ -677,13 +681,33 @@
     document.getElementById('break-btn').classList.toggle('active', on);
   });
 
-  // Hide standby if any panel already has a photo in Firebase on load
+  // Standby dismiss — synced across all screens via Firebase
+  window._fbDismissStandby = async () => {
+    await set(dbRef(db, 'standby'), false);
+  };
+  onValue(dbRef(db, 'standby'), snap => {
+    if (snap.val() === false) {
+      const el = document.getElementById('standby-overlay');
+      if (el) el.classList.add('hidden');
+    }
+  });
+
+  // Check standby state on load
   async function checkStandby() {
+    // If already dismissed in Firebase, hide immediately
+    const standbySnap = await get(dbRef(db, 'standby'));
+    if (standbySnap.val() === false) {
+      const el = document.getElementById('standby-overlay');
+      if (el) el.classList.add('hidden');
+      return;
+    }
+    // If any panel has a photo, also hide
     for (const id of ['a','b']) {
       const snap = await get(dbRef(db, 'panels/' + id + '/current'));
       if (snap.val()) {
         const el = document.getElementById('standby-overlay');
         if (el) el.classList.add('hidden');
+        await set(dbRef(db, 'standby'), false);
         return;
       }
     }
@@ -737,8 +761,8 @@
   }
 
   function dismissStandby() {
-    const el = document.getElementById('standby-overlay');
-    if (el) el.classList.add('hidden');
+    // Write to Firebase so all screens sync
+    if (window._fbDismissStandby) window._fbDismissStandby();
   }
 
   function toggleFullscreen() {
