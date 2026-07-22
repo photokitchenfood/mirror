@@ -873,10 +873,11 @@
   window._fbSetZoom = async (id, level) => {
     await set(dbRef(db, 'zoom/' + id), level);
   };
+  window.applyZoom = applyZoom;
   ['a', 'b'].forEach(id => {
     onValue(dbRef(db, 'zoom/' + id), snap => {
       const level = snap.val();
-      if (level && typeof applyZoom === 'function') applyZoom(id, level);
+      if (level) applyZoom(id, level);
     });
   });
 
@@ -893,6 +894,9 @@
       }
     });
   });
+
+  // Expose to global scope so HTML onclick handlers can call them
+  window.cycleZoom = cycleZoom;
 
   window._uploadImage = uploadImage;
 </script>
@@ -1049,11 +1053,12 @@
   const _zoomLevels = [1, 2, 3];
   const _zoomState  = { a: 0, b: 0 };
 
-  function cycleZoom(id) {
-    _zoomState[id] = (_zoomState[id] + 1) % _zoomLevels.length;
-    const level = _zoomLevels[_zoomState[id]];
+  function cycleZoom(id, dir) {
+    const cur  = _zoomState[id] || 0;
+    const next = Math.max(0, Math.min(_zoomLevels.length - 1, cur + (dir || 1)));
+    _zoomState[id] = next;
+    const level = _zoomLevels[next];
     applyZoom(id, level);
-    // Sync to Firebase so both screens follow
     if (window._fbSetZoom) window._fbSetZoom(id, level);
   }
 
@@ -1061,8 +1066,7 @@
     _zoomState[id] = _zoomLevels.indexOf(level) !== -1 ? _zoomLevels.indexOf(level) : 0;
     const img  = document.getElementById('img-' + id);
     const drop = document.getElementById('drop-' + id);
-    const btn  = document.getElementById('zoom-btn-' + id);
-    if (!img || !drop || !btn) return;
+    if (!img || !drop) return;
     if (level === 1) {
       img.style.cssText = 'width:100%;height:100%;object-fit:contain;position:absolute;inset:0;display:block;';
       drop.classList.remove('zoomed');
@@ -1112,6 +1116,7 @@
     _drawMode[id] = !_drawMode[id];
     const canvas = document.getElementById('anno-' + id);
     const btn    = document.getElementById('anno-btn-' + id);
+    if (!canvas) return;
     canvas.classList.toggle('drawing', _drawMode[id]);
     if (btn) btn.classList.toggle('active', _drawMode[id]);
     if (_drawMode[id]) initCanvas(id);
