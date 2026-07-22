@@ -378,8 +378,7 @@
         <div class="field"><label for="pname-a">Project Name</label><input id="pname-a" type="text" placeholder="e.g. Unilever Batch 3" spellcheck="false" onchange="if(_isAdmin)saveMeta('a')" /></div>
         <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="if(_isAdmin)saveMeta('a')" /></div>
       </div>
-      <div style="display:flex;gap:6px;flex:1;min-height:0;">
-      <div class="dropzone" id="drop-a" style="flex:1;"  onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
+      <div class="dropzone" id="drop-a"  onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
         <input class="file-input" id="file-a" type="file" accept="image/*" onchange="loadFile(this,'a')" />
         <div class="drop-hint" id="hint-a">
           <i class="ti ti-photo"></i>
@@ -394,14 +393,6 @@
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-a"></div></div>
           <span class="upload-label" id="bar-label-a">Uploading…</span>
         </div>
-      </div>
-      <div class="panel-tools" id="tools-a">
-        <button class="tool-btn" onclick="cycleZoom('a',1)" id="zoom-in-a" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
-        <span class="zoom-label-side" id="zoom-label-a">1×</span>
-        <button class="tool-btn" onclick="cycleZoom('a',-1)" id="zoom-out-a" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
-        <div class="tool-divider"></div>
-        <button class="tool-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw"><i class="ti ti-pencil"></i></button>
-        <button class="tool-btn" onclick="clearAnno('a',true)" title="Clear drawing"><i class="ti ti-eraser"></i></button>
       </div>
       </div><!-- end drop+sidebar row -->
       <div class="filmstrip" id="strip-a"><span class="filmstrip-empty">No photos yet</span></div>
@@ -433,8 +424,7 @@
         <div class="field"><label for="pname-b">Project Name</label><input id="pname-b" type="text" placeholder="e.g. Tablecrafter May" spellcheck="false" onchange="if(_isAdmin)saveMeta('b')" /></div>
         <div class="field"><label for="pdate-b">Project Date</label><input id="pdate-b" type="date" onchange="if(_isAdmin)saveMeta('b')" /></div>
       </div>
-      <div style="display:flex;gap:6px;flex:1;min-height:0;">
-      <div class="dropzone" id="drop-b" style="flex:1;"  onclick="adminAction('b')" ondragover="adminDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="adminDrop(event,'b')">
+      <div class="dropzone" id="drop-b"  onclick="adminAction('b')" ondragover="adminDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="adminDrop(event,'b')">
         <input class="file-input" id="file-b" type="file" accept="image/*" onchange="loadFile(this,'b')" />
         <div class="drop-hint" id="hint-b">
           <i class="ti ti-photo"></i>
@@ -450,18 +440,28 @@
           <span class="upload-label" id="bar-label-b">Uploading…</span>
         </div>
       </div>
-      <div class="panel-tools" id="tools-b">
-        <button class="tool-btn" onclick="cycleZoom('b',1)" id="zoom-in-b" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
-        <span class="zoom-label-side" id="zoom-label-b">1×</span>
-        <button class="tool-btn" onclick="cycleZoom('b',-1)" id="zoom-out-b" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
-        <div class="tool-divider"></div>
-        <button class="tool-btn" onclick="toggleDraw('b')" id="anno-btn-b" title="Draw"><i class="ti ti-pencil"></i></button>
-        <button class="tool-btn" onclick="clearAnno('b',true)" title="Clear drawing"><i class="ti ti-eraser"></i></button>
-      </div>
       </div><!-- end drop+sidebar row -->
       <div class="filmstrip" id="strip-b"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
+  </div>
+
+  <!-- Fixed Photoshop-style toolbars -->
+  <div class="toolbar toolbar-a" id="toolbar-a">
+    <button class="tb-btn" onclick="cycleZoom('a',1)" id="zoom-in-a" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
+    <span class="tb-label" id="zoom-label-a">1×</span>
+    <button class="tb-btn" onclick="cycleZoom('a',-1)" id="zoom-out-a" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
+    <div class="tb-divider"></div>
+    <button class="tb-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw / Annotate"><i class="ti ti-pencil"></i></button>
+    <button class="tb-btn" onclick="clearAnno('a',true)" title="Clear annotations"><i class="ti ti-eraser"></i></button>
+  </div>
+  <div class="toolbar toolbar-b" id="toolbar-b">
+    <button class="tb-btn" onclick="cycleZoom('b',1)" id="zoom-in-b" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
+    <span class="tb-label" id="zoom-label-b">1×</span>
+    <button class="tb-btn" onclick="cycleZoom('b',-1)" id="zoom-out-b" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
+    <div class="tb-divider"></div>
+    <button class="tb-btn" onclick="toggleDraw('b')" id="anno-btn-b" title="Draw / Annotate"><i class="ti ti-pencil"></i></button>
+    <button class="tb-btn" onclick="clearAnno('b',true)" title="Clear annotations"><i class="ti ti-eraser"></i></button>
   </div>
 
   <div class="footer">
@@ -695,7 +695,6 @@
     document.querySelectorAll('#strip-' + id + ' .thumb-wrap').forEach(w => w.classList.remove('active-a','active-b'));
     if (thumbWrap) thumbWrap.classList.add('active-' + id);
     setStatus(id, 'synced', 'Live ●');
-    if (typeof showZoomBar === 'function') showZoomBar(id);
   }
 
   /* ── Filmstrip ── */
@@ -741,7 +740,6 @@
     drop.classList.remove('loaded-a','loaded-b');
     document.getElementById('fsize-' + id).textContent = '';
     setStatus(id, '', 'Waiting…');
-    if (typeof hideZoomBar === 'function') hideZoomBar(id);
     setTimeout(() => { clearing[id] = false; }, 1000);
   };
 
@@ -915,7 +913,21 @@
     if (mode === 'b'    && btns[2]) btns[2].classList.add('on');
     if (mode === 'a') { pb.classList.add('hide'); panels.classList.add('single-view'); }
     else if (mode === 'b') { pa.classList.add('hide'); panels.classList.add('single-view'); }
-
+    // Reposition toolbars
+    const ta = document.getElementById('toolbar-a');
+    const tb = document.getElementById('toolbar-b');
+    if (ta && tb) {
+      if (mode === 'side') {
+        ta.style.display = 'flex'; ta.className = 'toolbar toolbar-a';
+        tb.style.display = 'flex'; tb.className = 'toolbar toolbar-b';
+      } else if (mode === 'a') {
+        ta.style.display = 'flex'; ta.className = 'toolbar single';
+        tb.style.display = 'none';
+      } else if (mode === 'b') {
+        ta.style.display = 'none';
+        tb.style.display = 'flex'; tb.className = 'toolbar single';
+      }
+    }
   }
 
   function setLayout(mode, btn) {
