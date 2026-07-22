@@ -227,18 +227,29 @@
     .admin-inline { display: none !important; }
 
     /* ── Zoom overlay ── */
-    /* zoom toggle button — top right corner, small and clean */
-    .zoom-btn {
-      position: absolute; top: 10px; right: 12px; z-index: 8;
-      background: rgba(0,0,0,0.4); border: 0.5px solid rgba(255,255,255,0.2);
-      color: rgba(255,255,255,0.7); font-size: 11px; font-family: 'DM Mono', monospace;
-      padding: 4px 8px; border-radius: 20px; cursor: pointer;
-      display: flex; align-items: center; gap: 4px;
-      opacity: 0; transition: opacity 0.2s;
+    /* floating zoom controls — fixed to bottom center of each panel, always visible when photo loaded */
+    .zoom-float {
+      position: fixed; bottom: 70px; z-index: 20;
+      display: none;
+      align-items: center; gap: 6px;
+      background: rgba(0,0,0,0.55); border: 0.5px solid rgba(255,255,255,0.15);
+      border-radius: 20px; padding: 5px 10px;
+      pointer-events: all;
     }
-    .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 0.6; }
-    .dropzone.loaded-a .zoom-btn:hover, .dropzone.loaded-b .zoom-btn:hover { opacity: 1; }
-    .zoom-btn.zoomed { color: #FF6400; border-color: #FF6400; opacity: 1 !important; }
+    .zoom-float.visible { display: flex; }
+    .zoom-float-btn {
+      background: transparent; border: none; cursor: pointer;
+      color: rgba(255,255,255,0.6); font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      transition: color 0.15s, background 0.15s;
+    }
+    .zoom-float-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .zoom-float-label {
+      font-size: 11px; font-family: 'DM Mono', monospace;
+      color: rgba(255,255,255,0.8); min-width: 22px; text-align: center;
+    }
+    .zoom-float-label.zoomed { color: #FF6400; }
     /* cursor-following magnifier lens */
     .zoom-lens {
       position: absolute; z-index: 9;
@@ -381,7 +392,6 @@
         </div>
         <img class="drop-img" id="img-a" alt="Panel A" />
         <span class="filesize-badge" id="fsize-a"></span>
-        <button class="zoom-btn" id="zoom-btn-a" onclick="event.stopPropagation();cycleZoom('a')"><i class="ti ti-zoom-in"></i> <span id="zoom-label-a">1×</span></button>
         <div class="zoom-lens" id="zoom-lens-a"></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-a"></canvas>
@@ -429,7 +439,6 @@
         </div>
         <img class="drop-img" id="img-b" alt="Panel B" />
         <span class="filesize-badge" id="fsize-b"></span>
-        <button class="zoom-btn" id="zoom-btn-b" onclick="event.stopPropagation();cycleZoom('b')"><i class="ti ti-zoom-in"></i> <span id="zoom-label-b">1×</span></button>
         <div class="zoom-lens" id="zoom-lens-b"></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-b"></canvas>
@@ -443,6 +452,18 @@
       <div class="filmstrip" id="strip-b"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
+  </div>
+
+  <!-- Floating zoom controls — fixed to bottom, shown when photo loaded -->
+  <div class="zoom-float" id="zoom-float-a" style="left:25%;">
+    <button class="zoom-float-btn" onclick="cycleZoom('a',-1)" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
+    <span class="zoom-float-label" id="zoom-label-a">1×</span>
+    <button class="zoom-float-btn" onclick="cycleZoom('a',1)" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
+  </div>
+  <div class="zoom-float" id="zoom-float-b" style="left:75%;">
+    <button class="zoom-float-btn" onclick="cycleZoom('b',-1)" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
+    <span class="zoom-float-label" id="zoom-label-b">1×</span>
+    <button class="zoom-float-btn" onclick="cycleZoom('b',1)" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
   </div>
 
   <div class="footer">
@@ -676,6 +697,7 @@
     document.querySelectorAll('#strip-' + id + ' .thumb-wrap').forEach(w => w.classList.remove('active-a','active-b'));
     if (thumbWrap) thumbWrap.classList.add('active-' + id);
     setStatus(id, 'synced', 'Live ●');
+    if (typeof showZoomBar === 'function') showZoomBar(id);
   }
 
   /* ── Filmstrip ── */
@@ -721,6 +743,7 @@
     drop.classList.remove('loaded-a','loaded-b');
     document.getElementById('fsize-' + id).textContent = '';
     setStatus(id, '', 'Waiting…');
+    if (typeof hideZoomBar === 'function') hideZoomBar(id);
     setTimeout(() => { clearing[id] = false; }, 1000);
   };
 
@@ -883,7 +906,6 @@
     const panels = document.getElementById('panels');
     pa.classList.remove('hide'); pb.classList.remove('hide');
     panels.classList.remove('single-view');
-    // Update button states
     const btns = document.querySelectorAll('.layout-btns .lbtn');
     btns.forEach(b => b.classList.remove('on'));
     if (mode === 'side' && btns[0]) btns[0].classList.add('on');
@@ -891,6 +913,17 @@
     if (mode === 'b'    && btns[2]) btns[2].classList.add('on');
     if (mode === 'a') { pb.classList.add('hide'); panels.classList.add('single-view'); }
     else if (mode === 'b') { pa.classList.add('hide'); panels.classList.add('single-view'); }
+    // Reposition zoom floats based on layout
+    const fa = document.getElementById('zoom-float-a');
+    const fb = document.getElementById('zoom-float-b');
+    if (mode === 'side') {
+      if (fa) fa.style.left = '25%'; if (fa) fa.style.transform = 'translateX(-50%)';
+      if (fb) fb.style.left = '75%'; if (fb) fb.style.transform = 'translateX(-50%)';
+    } else if (mode === 'a') {
+      if (fa) fa.style.left = '50%'; if (fa) fa.style.transform = 'translateX(-50%)';
+    } else if (mode === 'b') {
+      if (fb) fb.style.left = '50%'; if (fb) fb.style.transform = 'translateX(-50%)';
+    }
   }
 
   function setLayout(mode, btn) {
