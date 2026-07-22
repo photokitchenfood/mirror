@@ -326,9 +326,9 @@
           <span class="status-text" id="stxt-a">Waiting…</span>
         </div>
       </div>
-      <div class="fields admin-only" id="fields-a" style="display:none;">
-        <div class="field"><label for="pname-a">Project Name</label><input id="pname-a" type="text" placeholder="e.g. Unilever Batch 3" spellcheck="false" onchange="saveMeta('a')" /></div>
-        <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="saveMeta('a')" /></div>
+      <div class="fields" id="fields-a">
+        <div class="field"><label for="pname-a">Project Name</label><input id="pname-a" type="text" placeholder="e.g. Unilever Batch 3" spellcheck="false" onchange="if(_isAdmin)saveMeta('a')" /></div>
+        <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="if(_isAdmin)saveMeta('a')" /></div>
       </div>
       <div class="dropzone" id="drop-a" onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
         <input class="file-input" id="file-a" type="file" accept="image/*" onchange="loadFile(this,'a')" />
@@ -370,9 +370,9 @@
           <span class="status-text" id="stxt-b">Waiting…</span>
         </div>
       </div>
-      <div class="fields admin-only" id="fields-b" style="display:none;">
-        <div class="field"><label for="pname-b">Project Name</label><input id="pname-b" type="text" placeholder="e.g. Tablecrafter May" spellcheck="false" onchange="saveMeta('b')" /></div>
-        <div class="field"><label for="pdate-b">Project Date</label><input id="pdate-b" type="date" onchange="saveMeta('b')" /></div>
+      <div class="fields" id="fields-b">
+        <div class="field"><label for="pname-b">Project Name</label><input id="pname-b" type="text" placeholder="e.g. Tablecrafter May" spellcheck="false" onchange="if(_isAdmin)saveMeta('b')" /></div>
+        <div class="field"><label for="pdate-b">Project Date</label><input id="pdate-b" type="date" onchange="if(_isAdmin)saveMeta('b')" /></div>
       </div>
       <div class="dropzone" id="drop-b" onclick="adminAction('b')" ondragover="adminDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="adminDrop(event,'b')">
         <input class="file-input" id="file-b" type="file" accept="image/*" onchange="loadFile(this,'b')" />
@@ -789,14 +789,22 @@
 
   /* ── Layout sync via Firebase ── */
   window._fbSetLayout = async (mode) => {
-    console.log('[PK Layout] Writing to Firebase:', mode);
     await set(dbRef(db, 'layout'), mode);
-    console.log('[PK Layout] Written successfully');
   };
   onValue(dbRef(db, 'layout'), snap => {
     const mode = snap.val() || 'side';
-    console.log('[PK Layout] Received from Firebase:', mode);
     applyLayout(mode);
+  });
+
+  /* ── Zoom sync ── */
+  window._fbSetZoom = async (id, level) => {
+    await set(dbRef(db, 'zoom/' + id), level);
+  };
+  ['a', 'b'].forEach(id => {
+    onValue(dbRef(db, 'zoom/' + id), snap => {
+      const level = snap.val();
+      if (level && typeof applyZoom === 'function') applyZoom(id, level);
+    });
   });
 
   window._uploadImage = uploadImage;
@@ -820,13 +828,8 @@
   }
 
   function setLayout(mode, btn) {
-    console.log('[PK Layout] setLayout called:', mode, '| _fbSetLayout exists:', !!window._fbSetLayout);
     applyLayout(mode);
-    if (window._fbSetLayout) {
-      window._fbSetLayout(mode);
-    } else {
-      console.warn('[PK Layout] _fbSetLayout not ready yet!');
-    }
+    if (window._fbSetLayout) window._fbSetLayout(mode);
   }
 
   function setBg(appBg, fieldBg, fieldBorder, sw) {
@@ -939,9 +942,13 @@
     // Badges
     document.getElementById('admin-badge').style.display  = _isAdmin ? 'inline-block' : 'none';
     document.getElementById('client-badge').style.display = _isAdmin ? 'none' : 'inline-block';
-    // Fields
-    document.getElementById('fields-a').style.display = _isAdmin ? 'flex' : 'none';
-    document.getElementById('fields-b').style.display = _isAdmin ? 'flex' : 'none';
+    // Fields — always visible, but inputs locked for clients
+    document.getElementById('fields-a').style.display = 'flex';
+    document.getElementById('fields-b').style.display = 'flex';
+    ['pname-a','pdate-a','pname-b','pdate-b'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.readOnly = !_isAdmin;
+    });
     // Layout buttons
     document.getElementById('layout-btns').style.display = _isAdmin ? 'flex' : 'none';
   }
@@ -958,24 +965,27 @@
   function cycleZoom(id) {
     _zoomState[id] = (_zoomState[id] + 1) % _zoomLevels.length;
     const level = _zoomLevels[_zoomState[id]];
-    const img   = document.getElementById('img-' + id);
-    const drop  = document.getElementById('drop-' + id);
-    const btn   = document.getElementById('zoom-btn-' + id);
+    applyZoom(id, level);
+    // Sync to Firebase so both screens follow
+    if (window._fbSetZoom) window._fbSetZoom(id, level);
+  }
+
+  function applyZoom(id, level) {
+    _zoomState[id] = _zoomLevels.indexOf(level) !== -1 ? _zoomLevels.indexOf(level) : 0;
+    const img  = document.getElementById('img-' + id);
+    const drop = document.getElementById('drop-' + id);
+    const btn  = document.getElementById('zoom-btn-' + id);
+    if (!img || !drop || !btn) return;
     if (level === 1) {
-      // Reset to contain
       img.style.cssText = 'width:100%;height:100%;object-fit:contain;position:absolute;inset:0;display:block;';
       drop.classList.remove('zoomed');
       drop.scrollTop  = 0;
       drop.scrollLeft = 0;
     } else {
-      // Use natural image dimensions scaled by zoom level
       const naturalW = img.naturalWidth  || drop.offsetWidth;
       const naturalH = img.naturalHeight || drop.offsetHeight;
-      const w = naturalW * level;
-      const h = naturalH * level;
-      img.style.cssText = 'width:' + w + 'px;height:' + h + 'px;object-fit:unset;position:relative;inset:auto;display:block;flex-shrink:0;';
+      img.style.cssText = 'width:' + (naturalW * level) + 'px;height:' + (naturalH * level) + 'px;object-fit:unset;position:relative;inset:auto;display:block;flex-shrink:0;';
       drop.classList.add('zoomed');
-      // Centre scroll
       setTimeout(() => {
         drop.scrollLeft = (drop.scrollWidth  - drop.offsetWidth)  / 2;
         drop.scrollTop  = (drop.scrollHeight - drop.offsetHeight) / 2;
@@ -986,13 +996,8 @@
 
   // Reset zoom when new image loads
   function resetZoom(id) {
-    _zoomState[id] = 0;
-    const img = document.getElementById('img-' + id);
-    const drop = document.getElementById('drop-' + id);
-    const btn  = document.getElementById('zoom-btn-' + id);
-    if (img) { img.style.width = '100%'; img.style.height = '100%'; img.style.position = 'absolute'; img.style.inset = '0'; }
-    if (drop) drop.classList.remove('zoomed');
-    if (btn)  btn.innerHTML = '<i class="ti ti-zoom-in"></i> 1×';
+    applyZoom(id, 1);
+    if (window._fbSetZoom) window._fbSetZoom(id, 1);
   }
 
   function setManilaDate() {
