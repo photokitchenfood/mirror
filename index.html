@@ -210,9 +210,8 @@
       position: fixed; inset: 0; z-index: 200;
       background: rgba(255,255,255,0.96);
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
     }
-    .pin-overlay { display: none; }
     .pin-overlay.show { display: flex; }
     .pin-title { font-size: 18px; font-weight: 600; color: #222; font-family: 'Inter', sans-serif; }
     .pin-sub { font-size: 12px; color: #999; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
@@ -243,8 +242,32 @@
 </head>
 <body>
 <div class="app" id="app">
-
-
+  <!-- PIN overlay -->
+  <div class="pin-overlay" id="pin-overlay">
+    <div class="pin-title">Photokitchen Admin</div>
+    <div class="pin-sub">Enter your 4-digit PIN to continue</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot-ind" id="pd0"></div>
+      <div class="pin-dot-ind" id="pd1"></div>
+      <div class="pin-dot-ind" id="pd2"></div>
+      <div class="pin-dot-ind" id="pd3"></div>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('back')">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" onclick="pinKey('cancel')" style="font-size:11px;color:#aaa;">✕</button>
+    </div>
+  </div>
 
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
