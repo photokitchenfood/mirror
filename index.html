@@ -415,7 +415,7 @@
       </div>
       <div class="fields" id="fields-a">
         <div class="field"><label for="pname-a">Project Name</label><input id="pname-a" type="text" placeholder="e.g. Unilever Batch 3" spellcheck="false" onchange="if(_isAdmin)saveMeta('a')" /></div>
-        <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="if(_isAdmin)saveMeta('a')" /></div>
+        <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="if(_isAdmin){saveMeta('a');updateDateDisplay('a')}" style="position:absolute;opacity:0;pointer-events:none;" /><span id="pdate-display-a" onclick="if(_isAdmin)document.getElementById('pdate-a').showPicker&&document.getElementById('pdate-a').showPicker()" style="font-size:12px;font-family:DM Mono,monospace;color:#222;cursor:text;flex:1;"></span></div>
       </div>
       <div class="dropzone" id="drop-a"  onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
         <input class="file-input" id="file-a" type="file" accept="image/*" onchange="loadFile(this,'a')" />
@@ -1094,7 +1094,7 @@
     // Fields — always visible, but inputs locked for clients
     document.getElementById('fields-a').style.display = 'flex';
     document.getElementById('fields-b').style.display = 'flex';
-    ['pname-a','pdate-a','pname-b','pdate-b'].forEach(id => {
+    ['pname-a','pname-b'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.readOnly = !_isAdmin;
     });
@@ -1149,6 +1149,17 @@
     if (window._fbSetZoom) window._fbSetZoom(id, 1);
   }
 
+  function updateDateDisplay(id) {
+    const input = document.getElementById('pdate-' + id);
+    const span  = document.getElementById('pdate-display-' + id);
+    if (!input || !span) return;
+    const val = input.value;
+    if (!val) { span.textContent = '—'; return; }
+    const [y, m, d] = val.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    span.textContent = months[parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
+  }
+
   function setManilaDate() {
     const manila = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
     const today  = manila.getFullYear() + '-' +
@@ -1160,6 +1171,7 @@
     });
   }
   setManilaDate();
+  ['a','b'].forEach(updateDateDisplay);
   initRole();
 
   /* ── Annotation / Draw tool ── */
@@ -1212,6 +1224,8 @@
     _lastPos[id] = getPos(id, e);
   }
 
+  let _drawThrottle = null;
+
   function draw(id, e) {
     if (!_drawing[id]) return;
     const canvas = document.getElementById('anno-' + id);
@@ -1227,27 +1241,26 @@
     ctx.lineTo(pos.x,  pos.y);
     ctx.stroke();
     _lastPos[id] = pos;
-    // Sync to Firebase (throttled — every 50ms)
+    // Sync every stroke segment — throttled to 30ms for smooth real-time mirror
     if (!_drawThrottle) {
       _drawThrottle = setTimeout(() => {
-        syncAnno(id, canvas.toDataURL());
+        if (window._fbSetAnno) window._fbSetAnno(id, canvas.toDataURL());
         _drawThrottle = null;
-      }, 50);
+      }, 30);
     }
   }
-
-  let _drawThrottle = null;
 
   function stopDraw(id) {
     if (!_drawing[id]) return;
     _drawing[id] = false;
+    clearTimeout(_drawThrottle);
+    _drawThrottle = null;
     const canvas = document.getElementById('anno-' + id);
-    syncAnno(id, canvas.toDataURL());
+    // Final sync on mouseup
+    if (window._fbSetAnno) window._fbSetAnno(id, canvas.toDataURL());
   }
 
-  function syncAnno(id, dataUrl) {
-    if (window._fbSetAnno) window._fbSetAnno(id, dataUrl);
-  }
+
 
   function applyAnno(id, dataUrl) {
     const canvas = document.getElementById('anno-' + id);
