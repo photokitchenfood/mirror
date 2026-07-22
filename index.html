@@ -829,7 +829,8 @@
 
   /* ── Role detection via URL param ── */
   const ADMIN_PIN  = '0381';
-  const _urlRole   = new URLSearchParams(window.location.search).get('role');
+  // Detect role from URL hash (#admin) or query param (?role=admin) — hash is more reliable on GitHub Pages
+  const _urlRole = window.location.hash === '#admin' || new URLSearchParams(window.location.search).get('role') === 'admin' ? 'admin' : 'client';
   let   _isAdmin   = false;
   let   _pinBuffer = '';
 
