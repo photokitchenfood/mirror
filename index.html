@@ -286,6 +286,45 @@
     }
     .anno-canvas.drawing { pointer-events: all; cursor: crosshair; }
 
+
+    /* ── Fixed toolbars ── */
+    #toolbar-a, #toolbar-b {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 30;
+      background: #2a2a2a;
+      border-radius: 10px;
+      padding: 8px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    #toolbar-a { right: 56px; }
+    #toolbar-b { right: 8px;  }
+    .tb-btn {
+      width: 36px; height: 36px;
+      border-radius: 7px; border: none;
+      background: transparent; color: #aaa;
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tb-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .tb-btn.active { background: #FF6400; color: #fff; }
+    .tb-divider { width: 24px; height: 1px; background: rgba(255,255,255,0.1); margin: 2px 0; }
+    .tb-label {
+      font-size: 9px; font-family: 'DM Mono', monospace;
+      color: #666; text-align: center; line-height: 1;
+    }
+    .tb-label.zoomed { color: #FF6400; }
+    .tb-panel-label {
+      font-size: 8px; color: #555;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.05em; margin-bottom: 2px;
+    }
   </style>
 </head>
 <body>
@@ -394,7 +433,6 @@
           <span class="upload-label" id="bar-label-a">Uploading…</span>
         </div>
       </div>
-      </div><!-- end drop+sidebar row -->
       <div class="filmstrip" id="strip-a"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
@@ -440,14 +478,14 @@
           <span class="upload-label" id="bar-label-b">Uploading…</span>
         </div>
       </div>
-      </div><!-- end drop+sidebar row -->
       <div class="filmstrip" id="strip-b"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
   </div>
 
   <!-- Fixed Photoshop-style toolbars -->
-  <div class="toolbar toolbar-a" id="toolbar-a">
+  <div class="toolbar" id="toolbar-a">
+    <span style="font-size:8px;color:#666;font-family:DM Mono,monospace;letter-spacing:0.05em;margin-bottom:2px;">A</span>
     <button class="tb-btn" onclick="cycleZoom('a',1)" id="zoom-in-a" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
     <span class="tb-label" id="zoom-label-a">1×</span>
     <button class="tb-btn" onclick="cycleZoom('a',-1)" id="zoom-out-a" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
@@ -455,7 +493,8 @@
     <button class="tb-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw / Annotate"><i class="ti ti-pencil"></i></button>
     <button class="tb-btn" onclick="clearAnno('a',true)" title="Clear annotations"><i class="ti ti-eraser"></i></button>
   </div>
-  <div class="toolbar toolbar-b" id="toolbar-b">
+  <div class="toolbar" id="toolbar-b">
+    <span style="font-size:8px;color:#666;font-family:DM Mono,monospace;letter-spacing:0.05em;margin-bottom:2px;">B</span>
     <button class="tb-btn" onclick="cycleZoom('b',1)" id="zoom-in-b" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
     <span class="tb-label" id="zoom-label-b">1×</span>
     <button class="tb-btn" onclick="cycleZoom('b',-1)" id="zoom-out-b" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
