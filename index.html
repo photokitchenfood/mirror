@@ -239,8 +239,8 @@
       display: flex; align-items: center; gap: 4px;
     }
     .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 1; }
-    .dropzone.zoomed { overflow: auto; cursor: zoom-out; }
-    .dropzone.zoomed .drop-img { width: auto; height: auto; position: relative; inset: auto; }
+    .dropzone.zoomed { overflow: scroll !important; cursor: zoom-out; display: block !important; }
+    .dropzone.zoomed .drop-img { position: relative !important; inset: auto !important; height: auto !important; object-fit: unset !important; display: block !important; }
   </style>
 </head>
 <body>
@@ -295,7 +295,7 @@
         <div class="bw-bar-bg"><div class="bw-bar-fill" id="bw-bar"></div></div>
       </div>
       <div class="sep"></div>
-      <div class="layout-btns">
+      <div class="layout-btns admin-only" id="layout-btns" style="display:none;">
         <button class="lbtn on" onclick="setLayout('side',this)">Side by side</button>
         <button class="lbtn"    onclick="setLayout('a',this)">Camera A</button>
         <button class="lbtn"    onclick="setLayout('b',this)">Camera B</button>
@@ -797,8 +797,8 @@
     await set(dbRef(db, 'layout'), mode);
   };
   onValue(dbRef(db, 'layout'), snap => {
-    const mode = snap.val();
-    if (mode) applyLayout(mode);
+    const mode = snap.val() || 'side';
+    applyLayout(mode);
   });
 
   window._uploadImage = uploadImage;
@@ -928,6 +928,8 @@
     // Fields bg visible to admin
     document.getElementById('fields-a').style.display = _isAdmin ? 'flex' : 'none';
     document.getElementById('fields-b').style.display = _isAdmin ? 'flex' : 'none';
+    // Layout buttons — admin only
+    document.getElementById('layout-btns').style.display = _isAdmin ? 'flex' : 'none';
   }
 
   // Admin-gated drop actions
@@ -946,17 +948,24 @@
     const drop  = document.getElementById('drop-' + id);
     const btn   = document.getElementById('zoom-btn-' + id);
     if (level === 1) {
-      img.style.width    = '100%';
-      img.style.height   = '100%';
-      img.style.position = 'absolute';
-      img.style.inset    = '0';
+      // Reset to contain
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;position:absolute;inset:0;display:block;';
       drop.classList.remove('zoomed');
+      drop.scrollTop  = 0;
+      drop.scrollLeft = 0;
     } else {
-      img.style.width    = (level * 100) + '%';
-      img.style.height   = 'auto';
-      img.style.position = 'relative';
-      img.style.inset    = 'auto';
+      // Use natural image dimensions scaled by zoom level
+      const naturalW = img.naturalWidth  || drop.offsetWidth;
+      const naturalH = img.naturalHeight || drop.offsetHeight;
+      const w = naturalW * level;
+      const h = naturalH * level;
+      img.style.cssText = 'width:' + w + 'px;height:' + h + 'px;object-fit:unset;position:relative;inset:auto;display:block;flex-shrink:0;';
       drop.classList.add('zoomed');
+      // Centre scroll
+      setTimeout(() => {
+        drop.scrollLeft = (drop.scrollWidth  - drop.offsetWidth)  / 2;
+        drop.scrollTop  = (drop.scrollHeight - drop.offsetHeight) / 2;
+      }, 30);
     }
     btn.innerHTML = '<i class="ti ti-zoom-in"></i> ' + level + '×';
   }
