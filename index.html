@@ -212,7 +212,8 @@
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
     }
-    .pin-overlay.hidden { display: none; }
+    .pin-overlay { display: none; }
+    .pin-overlay.show { display: flex; }
     .pin-title { font-size: 18px; font-weight: 600; color: #222; font-family: 'Inter', sans-serif; }
     .pin-sub { font-size: 12px; color: #999; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
     .pin-dots { display: flex; gap: 10px; margin: 4px 0; }
@@ -829,26 +830,32 @@
 
   /* ── Role detection via URL param ── */
   const ADMIN_PIN  = '0381';
-  // Detect role from URL hash (#admin) or query param (?role=admin) — hash is more reliable on GitHub Pages
-  const _urlRole = window.location.hash === '#admin' || new URLSearchParams(window.location.search).get('role') === 'admin' ? 'admin' : 'client';
-  let   _isAdmin   = false;
-  let   _pinBuffer = '';
+  let _isAdmin    = false;
+  let _pinBuffer  = '';
+  let _keySeq     = '';  // tracks secret key sequence
 
   function initRole() {
-    if (_urlRole === 'admin') {
-      // Show PIN overlay — stays until correct PIN entered
-      document.getElementById('pin-overlay').classList.remove('hidden');
-    } else {
-      // Client view — apply immediately, no PIN needed
-      document.getElementById('pin-overlay').classList.add('hidden');
-      applyRole();
-    }
+    // Always start as client — admin PIN triggered by typing 'pkadmin' anywhere
+    applyRole();
+    // Listen for secret key sequence: type 'pkadmin' anywhere to open PIN
+    document.addEventListener('keydown', function(e) {
+      if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+      _keySeq += e.key.toLowerCase();
+      if (_keySeq.length > 7) _keySeq = _keySeq.slice(-7);
+      if (_keySeq.endsWith('pkadmin')) {
+        _keySeq = '';
+        _pinBuffer = '';
+        updatePinDots();
+        document.getElementById('pin-error').textContent = '';
+        document.getElementById('pin-overlay').classList.add('show');
+      }
+    });
   }
 
   function pinKey(k) {
     if (k === 'cancel') {
-      // Cancel on admin URL → fall back to client view
-      document.getElementById('pin-overlay').classList.add('hidden');
+      const po = document.getElementById('pin-overlay');
+      if (po) po.classList.remove('show');
       applyRole();
       return;
     }
@@ -859,7 +866,8 @@
     if (_pinBuffer.length === 4) {
       if (_pinBuffer === ADMIN_PIN) {
         _isAdmin = true;
-        document.getElementById('pin-overlay').classList.add('hidden');
+        const po = document.getElementById('pin-overlay');
+        if (po) po.classList.remove('show');
         document.getElementById('pin-error').textContent = '';
         applyRole();
       } else {
