@@ -204,13 +204,83 @@
       font-family: 'Inter', sans-serif;
       letter-spacing: 0.06em; margin-top: 4px;
     }
+
+    /* ── Role / PIN modal ── */
+    .pin-modal {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+    }
+    .pin-modal.show { display: flex; }
+    .pin-title { font-size: 18px; font-weight: 600; color: #222; font-family: 'Inter', sans-serif; }
+    .pin-sub { font-size: 12px; color: #999; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+    .pin-dots { display: flex; gap: 10px; margin: 4px 0; }
+    .pin-dot-ind { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #ccc; transition: background 0.15s, border-color 0.15s; }
+    .pin-dot-ind.filled { background: #222; border-color: #222; }
+    .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .pin-key { width: 64px; height: 64px; border-radius: 50%; border: 0.5px solid #ddd; background: #f9f9f9; font-size: 20px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; color: #222; }
+    .pin-key:hover { background: #eee; }
+    .pin-key.wide { border-radius: 32px; width: 100%; grid-column: span 3; font-size: 13px; color: #888; height: 44px; }
+    .pin-error { font-size: 11px; color: #E24B4A; font-family: 'Inter', sans-serif; min-height: 16px; }
+    .admin-badge { font-size: 9px; background: #222; color: #fff; padding: 2px 7px; border-radius: 10px; font-family: 'Inter', sans-serif; letter-spacing: 0.06em; margin-left: 4px; vertical-align: middle; }
+    .admin-only { display: none; }
+    .is-admin .admin-only { display: flex; }
+    .is-admin .admin-inline { display: inline-flex !important; }
+    .admin-inline { display: none !important; }
+
+    /* ── Zoom overlay ── */
+    .zoom-btn {
+      position: absolute; top: 10px; right: 12px; z-index: 6;
+      background: rgba(0,0,0,0.35); border: 0.5px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.8); font-size: 10px; font-family: 'DM Mono', monospace;
+      padding: 3px 8px; border-radius: 4px; cursor: pointer;
+      opacity: 0; transition: opacity 0.2s;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 1; }
+    .dropzone.zoomed { overflow: auto; cursor: zoom-out; }
+    .dropzone.zoomed .drop-img { width: auto; height: auto; position: relative; inset: auto; }
   </style>
 </head>
 <body>
 <div class="app" id="app">
 
+  <!-- PIN modal -->
+  <div class="pin-modal" id="pin-modal">
+    <div class="pin-title">Admin Access</div>
+    <div class="pin-sub">Enter your 4-digit PIN</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot-ind" id="pd0"></div>
+      <div class="pin-dot-ind" id="pd1"></div>
+      <div class="pin-dot-ind" id="pd2"></div>
+      <div class="pin-dot-ind" id="pd3"></div>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('back')">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" onclick="pinKey('cancel')" style="font-size:11px;color:#aaa;">✕</button>
+    </div>
+  </div>
+
+
   <div class="topbar">
-    <div class="logo">Photokitchen <span>Photo Mirroring</span></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="logo">Photokitchen <span>Photo Mirroring</span></div>
+      <span class="admin-badge" id="admin-badge" style="display:none;">Admin</span>
+      <button id="admin-login-btn" onclick="openPin()" style="font-size:9px;color:#bbb;background:transparent;border:none;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:0.05em;padding:0;">Admin Login</button>
+      <button id="admin-logout-btn" onclick="logoutAdmin()" style="display:none;font-size:9px;color:#bbb;background:transparent;border:none;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:0.05em;padding:0;">Logout</button>
+    </div>
     <div class="controls">
       <div class="bg-group">
         <span class="bg-label">BG</span>
@@ -231,9 +301,9 @@
         <button class="lbtn"    onclick="setLayout('b',this)">Camera B</button>
       </div>
       <div class="sep"></div>
-      <button class="break-btn" id="break-btn" onclick="toggleBreak()"><i class="ti ti-coffee"></i> Break</button>
-      <div class="sep"></div>
-      <button class="lbtn reset-btn" onclick="resetAll()"><i class="ti ti-refresh"></i> Reset all</button>
+      <button class="break-btn admin-only" id="break-btn" onclick="toggleBreak()" style="display:none;"><i class="ti ti-coffee"></i> Break</button>
+      <div class="sep admin-only" style="display:none;"></div>
+      <button class="lbtn reset-btn admin-only" onclick="resetAll()" style="display:none;"><i class="ti ti-refresh"></i> Reset all</button>
     </div>
   </div>
 
@@ -244,7 +314,7 @@
       <div class="panel-head">
         <div class="pdot dot-a"></div>
         <div class="panel-label-wrap la">
-          <select class="plabel-select la" id="label-a" onchange="saveLabel('a')">
+          <select class="plabel-select la admin-inline" id="label-a" onchange="saveLabel('a')" style="display:none;">
             <option value="Camera A: Prop Styled / Angled">Camera A: Prop Styled / Angled</option>
             <option value="Camera A: Prop Styled / Overhead">Camera A: Prop Styled / Overhead</option>
             <option value="Camera A: Dropout / Angled">Camera A: Dropout / Angled</option>
@@ -254,17 +324,18 @@
             <option value="Camera B: Dropout / Angled">Camera B: Dropout / Angled</option>
             <option value="Camera B: Dropout / Overhead">Camera B: Dropout / Overhead</option>
           </select>
+          <span class="plabel-select la client-label" id="client-label-a" style="pointer-events:none;padding-right:0;"></span>
         </div>
         <div class="status-bar">
           <div class="status-dot" id="sdot-a"></div>
           <span class="status-text" id="stxt-a">Waiting…</span>
         </div>
       </div>
-      <div class="fields" id="fields-a">
+      <div class="fields admin-only" id="fields-a" style="display:none;">
         <div class="field"><label for="pname-a">Project Name</label><input id="pname-a" type="text" placeholder="e.g. Unilever Batch 3" spellcheck="false" onchange="saveMeta('a')" /></div>
         <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="saveMeta('a')" /></div>
       </div>
-      <div class="dropzone" id="drop-a" onclick="triggerFile('a')" ondragover="onDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="onDrop(event,'a')">
+      <div class="dropzone" id="drop-a" onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
         <input class="file-input" id="file-a" type="file" accept="image/*" onchange="loadFile(this,'a')" />
         <div class="drop-hint" id="hint-a">
           <i class="ti ti-photo"></i>
@@ -272,7 +343,8 @@
         </div>
         <img class="drop-img" id="img-a" alt="Panel A" />
         <span class="filesize-badge" id="fsize-a"></span>
-        <button class="clear-photo-btn" onclick="event.stopPropagation();clearPanel('a')"><i class="ti ti-trash"></i> Clear photo</button>
+        <button class="zoom-btn" id="zoom-btn-a" onclick="event.stopPropagation();cycleZoom('a')"><i class="ti ti-zoom-in"></i> 1×</button>
+        <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <div class="upload-overlay" id="overlay-a">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-a"></div></div>
           <span class="upload-label" id="bar-label-a">Uploading…</span>
@@ -286,7 +358,7 @@
       <div class="panel-head">
         <div class="pdot dot-b"></div>
         <div class="panel-label-wrap lb">
-          <select class="plabel-select lb" id="label-b" onchange="saveLabel('b')">
+          <select class="plabel-select lb admin-inline" id="label-b" onchange="saveLabel('b')" style="display:none;">
             <option value="Camera A: Prop Styled / Angled">Camera A: Prop Styled / Angled</option>
             <option value="Camera A: Prop Styled / Overhead">Camera A: Prop Styled / Overhead</option>
             <option value="Camera A: Dropout / Angled">Camera A: Dropout / Angled</option>
@@ -296,17 +368,18 @@
             <option value="Camera B: Dropout / Angled">Camera B: Dropout / Angled</option>
             <option value="Camera B: Dropout / Overhead" selected>Camera B: Dropout / Overhead</option>
           </select>
+          <span class="plabel-select lb client-label" id="client-label-b" style="pointer-events:none;padding-right:0;"></span>
         </div>
         <div class="status-bar">
           <div class="status-dot" id="sdot-b"></div>
           <span class="status-text" id="stxt-b">Waiting…</span>
         </div>
       </div>
-      <div class="fields" id="fields-b">
+      <div class="fields admin-only" id="fields-b" style="display:none;">
         <div class="field"><label for="pname-b">Project Name</label><input id="pname-b" type="text" placeholder="e.g. Tablecrafter May" spellcheck="false" onchange="saveMeta('b')" /></div>
         <div class="field"><label for="pdate-b">Project Date</label><input id="pdate-b" type="date" onchange="saveMeta('b')" /></div>
       </div>
-      <div class="dropzone" id="drop-b" onclick="triggerFile('b')" ondragover="onDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="onDrop(event,'b')">
+      <div class="dropzone" id="drop-b" onclick="adminAction('b')" ondragover="adminDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="adminDrop(event,'b')">
         <input class="file-input" id="file-b" type="file" accept="image/*" onchange="loadFile(this,'b')" />
         <div class="drop-hint" id="hint-b">
           <i class="ti ti-photo"></i>
@@ -314,7 +387,8 @@
         </div>
         <img class="drop-img" id="img-b" alt="Panel B" />
         <span class="filesize-badge" id="fsize-b"></span>
-        <button class="clear-photo-btn" onclick="event.stopPropagation();clearPanel('b')"><i class="ti ti-trash"></i> Clear photo</button>
+        <button class="zoom-btn" id="zoom-btn-b" onclick="event.stopPropagation();cycleZoom('b')"><i class="ti ti-zoom-in"></i> 1×</button>
+        <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <div class="upload-overlay" id="overlay-b">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-b"></div></div>
           <span class="upload-label" id="bar-label-b">Uploading…</span>
@@ -520,7 +594,10 @@
     });
   };
   window.saveLabel = async (id) => {
-    await set(dbRef(db, 'panels/' + id + '/label'), document.getElementById('label-' + id).value);
+    const val = document.getElementById('label-' + id).value;
+    await set(dbRef(db, 'panels/' + id + '/label'), val);
+    const cl = document.getElementById('client-label-' + id);
+    if (cl) cl.textContent = val;
   };
 
   /* ── Display image from URL ── */
@@ -536,6 +613,7 @@
     hint.style.display = 'none';
     drop.classList.remove('loaded-a','loaded-b');
     drop.classList.add('loaded-' + id);
+    if (typeof resetZoom === 'function') resetZoom(id);
     // Hide standby overlay on first photo — sync across all screens
     const standby = document.getElementById('standby-overlay');
     if (standby && !standby.classList.contains('hidden')) {
@@ -714,6 +792,15 @@
   }
   checkStandby();
 
+  /* ── Layout sync via Firebase ── */
+  window._fbSetLayout = async (mode) => {
+    await set(dbRef(db, 'layout'), mode);
+  };
+  onValue(dbRef(db, 'layout'), snap => {
+    const mode = snap.val();
+    if (mode) applyLayout(mode);
+  });
+
   window._uploadImage = uploadImage;
 </script>
 
@@ -768,6 +855,121 @@
   function toggleFullscreen() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen();
     else document.exitFullscreen();
+  }
+
+  /* ── PIN & Role system ── */
+  const ADMIN_PIN = '0381';
+  let _pinBuffer  = '';
+  let _isAdmin    = false;
+
+  function openPin() {
+    _pinBuffer = '';
+    updatePinDots();
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-modal').classList.add('show');
+  }
+
+  function pinKey(k) {
+    if (k === 'cancel') { document.getElementById('pin-modal').classList.remove('show'); return; }
+    if (k === 'back')   { _pinBuffer = _pinBuffer.slice(0, -1); updatePinDots(); return; }
+    if (_pinBuffer.length >= 4) return;
+    _pinBuffer += k;
+    updatePinDots();
+    if (_pinBuffer.length === 4) {
+      if (_pinBuffer === ADMIN_PIN) {
+        _isAdmin = true;
+        document.getElementById('pin-modal').classList.remove('show');
+        document.getElementById('pin-error').textContent = '';
+        applyRole();
+      } else {
+        document.getElementById('pin-error').textContent = 'Incorrect PIN';
+        _pinBuffer = '';
+        updatePinDots();
+      }
+    }
+  }
+
+  function updatePinDots() {
+    for (let i = 0; i < 4; i++) {
+      document.getElementById('pd' + i).classList.toggle('filled', i < _pinBuffer.length);
+    }
+  }
+
+  function logoutAdmin() {
+    _isAdmin = false;
+    applyRole();
+  }
+
+  function applyRole() {
+    const app = document.getElementById('app');
+    // Toggle admin class on app
+    app.classList.toggle('is-admin', _isAdmin);
+    // Admin-only elements
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.style.display = _isAdmin ? (el.classList.contains('break-btn') || el.classList.contains('reset-btn') ? 'inline-flex' : 'flex') : 'none';
+    });
+    document.querySelectorAll('.admin-inline').forEach(el => {
+      el.style.display = _isAdmin ? 'inline-block' : 'none';
+    });
+    // Client labels (show when not admin)
+    document.querySelectorAll('.client-label').forEach(el => {
+      el.style.display = _isAdmin ? 'none' : 'inline-block';
+    });
+    // Update client labels text from selects
+    ['a','b'].forEach(id => {
+      const sel   = document.getElementById('label-' + id);
+      const label = document.getElementById('client-label-' + id);
+      if (sel && label) label.textContent = sel.value;
+    });
+    // Login/logout/badge buttons
+    document.getElementById('admin-login-btn').style.display  = _isAdmin ? 'none' : 'inline-block';
+    document.getElementById('admin-logout-btn').style.display = _isAdmin ? 'inline-block' : 'none';
+    document.getElementById('admin-badge').style.display      = _isAdmin ? 'inline-block' : 'none';
+    // Fields bg visible to admin
+    document.getElementById('fields-a').style.display = _isAdmin ? 'flex' : 'none';
+    document.getElementById('fields-b').style.display = _isAdmin ? 'flex' : 'none';
+  }
+
+  // Admin-gated drop actions
+  function adminAction(id)             { if (_isAdmin) triggerFile(id); }
+  function adminDragOver(e, id)        { if (_isAdmin) onDragOver(e, id); else e.preventDefault(); }
+  function adminDrop(e, id)            { if (_isAdmin) onDrop(e, id); else e.preventDefault(); }
+
+  /* ── Zoom ── */
+  const _zoomLevels = [1, 2, 3];
+  const _zoomState  = { a: 0, b: 0 };
+
+  function cycleZoom(id) {
+    _zoomState[id] = (_zoomState[id] + 1) % _zoomLevels.length;
+    const level = _zoomLevels[_zoomState[id]];
+    const img   = document.getElementById('img-' + id);
+    const drop  = document.getElementById('drop-' + id);
+    const btn   = document.getElementById('zoom-btn-' + id);
+    if (level === 1) {
+      img.style.width    = '100%';
+      img.style.height   = '100%';
+      img.style.position = 'absolute';
+      img.style.inset    = '0';
+      drop.classList.remove('zoomed');
+    } else {
+      img.style.width    = (level * 100) + '%';
+      img.style.height   = 'auto';
+      img.style.position = 'relative';
+      img.style.inset    = 'auto';
+      drop.classList.add('zoomed');
+    }
+    btn.innerHTML = '<i class="ti ti-zoom-in"></i> ' + level + '×';
+  }
+
+  // Reset zoom when new image loads
+  function resetZoom(id) {
+    _zoomState[id] = 0;
+    const img = document.getElementById('img-' + id);
+    const drop = document.getElementById('drop-' + id);
+    const btn  = document.getElementById('zoom-btn-' + id);
+    if (img) { img.style.width = '100%'; img.style.height = '100%'; img.style.position = 'absolute'; img.style.inset = '0'; }
+    if (drop) drop.classList.remove('zoomed');
+    if (btn)  btn.innerHTML = '<i class="ti ti-zoom-in"></i> 1×';
   }
 
   function setManilaDate() {
