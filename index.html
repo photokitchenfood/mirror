@@ -229,7 +229,7 @@
     /* ── Zoom overlay ── */
     /* panel sidebar — sits to the right of each dropzone */
     .panel-tools {
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: center;
       gap: 6px;
@@ -240,7 +240,7 @@
       flex-shrink: 0;
       width: 40px;
     }
-    .panel-tools.visible { display: flex; }
+    .panel-tools { display: flex; }
     .tool-btn {
       width: 32px; height: 32px;
       border-radius: 8px;
@@ -395,7 +395,6 @@
           <span class="upload-label" id="bar-label-a">Uploading…</span>
         </div>
       </div>
-      </div><!-- end drop+sidebar row -->
       <div class="panel-tools" id="tools-a">
         <button class="tool-btn" onclick="cycleZoom('a',1)" id="zoom-in-a" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
         <span class="zoom-label-side" id="zoom-label-a">1×</span>
@@ -404,6 +403,7 @@
         <button class="tool-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw"><i class="ti ti-pencil"></i></button>
         <button class="tool-btn" onclick="clearAnno('a',true)" title="Clear drawing"><i class="ti ti-eraser"></i></button>
       </div>
+      </div><!-- end drop+sidebar row -->
       <div class="filmstrip" id="strip-a"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
@@ -450,7 +450,6 @@
           <span class="upload-label" id="bar-label-b">Uploading…</span>
         </div>
       </div>
-      </div><!-- end drop+sidebar row -->
       <div class="panel-tools" id="tools-b">
         <button class="tool-btn" onclick="cycleZoom('b',1)" id="zoom-in-b" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
         <span class="zoom-label-side" id="zoom-label-b">1×</span>
@@ -459,6 +458,7 @@
         <button class="tool-btn" onclick="toggleDraw('b')" id="anno-btn-b" title="Draw"><i class="ti ti-pencil"></i></button>
         <button class="tool-btn" onclick="clearAnno('b',true)" title="Clear drawing"><i class="ti ti-eraser"></i></button>
       </div>
+      </div><!-- end drop+sidebar row -->
       <div class="filmstrip" id="strip-b"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
