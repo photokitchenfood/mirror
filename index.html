@@ -248,9 +248,10 @@
 
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="logo" onclick="logoClick()" style="cursor:default;user-select:none;">Photokitchen <span>Photo Mirroring</span></div>
+      <div class="logo">Photokitchen <span>Photo Mirroring</span></div>
       <span class="admin-badge" id="admin-badge" style="display:none;">Admin</span>
       <span id="client-badge" style="font-size:9px;color:#bbb;font-family:Inter,sans-serif;letter-spacing:0.05em;display:none;">Client View</span>
+      <button id="admin-entry-btn" onclick="openAdminPin()" style="font-size:9px;color:#ddd;background:transparent;border:0.5px solid #ddd;border-radius:4px;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:0.05em;padding:2px 7px;opacity:0.25;">⚙</button>
     </div>
     <div class="controls">
       <div class="bg-group">
@@ -837,20 +838,11 @@
     applyRole();
   }
 
-  // Triple-click the logo to open admin PIN
-  let _logoClicks = 0;
-  let _logoTimer  = null;
-  function logoClick() {
-    _logoClicks++;
-    clearTimeout(_logoTimer);
-    _logoTimer = setTimeout(() => { _logoClicks = 0; }, 600);
-    if (_logoClicks >= 3) {
-      _logoClicks = 0;
-      _pinBuffer  = '';
-      updatePinDots();
-      document.getElementById('pin-error').textContent = '';
-      document.getElementById('pin-overlay').classList.add('show');
-    }
+  function openAdminPin() {
+    _pinBuffer = '';
+    updatePinDots();
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-overlay').classList.add('show');
   }
 
   function pinKey(k) {
