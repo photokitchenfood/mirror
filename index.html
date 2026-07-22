@@ -227,29 +227,41 @@
     .admin-inline { display: none !important; }
 
     /* ── Zoom overlay ── */
-    /* floating zoom controls — fixed to bottom center of each panel, always visible when photo loaded */
-    .zoom-float {
-      position: fixed; bottom: 70px; z-index: 20;
+    /* panel sidebar — sits to the right of each dropzone */
+    .panel-tools {
       display: none;
-      align-items: center; gap: 6px;
-      background: rgba(0,0,0,0.55); border: 0.5px solid rgba(255,255,255,0.15);
-      border-radius: 20px; padding: 5px 10px;
-      pointer-events: all;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 4px;
+      background: rgba(0,0,0,0.06);
+      border-radius: 8px;
+      border: 0.5px solid rgba(0,0,0,0.08);
+      flex-shrink: 0;
+      width: 40px;
     }
-    .zoom-float.visible { display: flex; }
-    .zoom-float-btn {
-      background: transparent; border: none; cursor: pointer;
-      color: rgba(255,255,255,0.6); font-size: 18px;
+    .panel-tools.visible { display: flex; }
+    .tool-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #888;
+      font-size: 16px;
+      cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      width: 28px; height: 28px; border-radius: 50%;
-      transition: color 0.15s, background 0.15s;
+      transition: background 0.15s, color 0.15s;
+      position: relative;
     }
-    .zoom-float-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
-    .zoom-float-label {
-      font-size: 11px; font-family: 'DM Mono', monospace;
-      color: rgba(255,255,255,0.8); min-width: 22px; text-align: center;
+    .tool-btn:hover { background: rgba(0,0,0,0.08); color: #333; }
+    .tool-btn.active { background: #FF6400; color: #fff; }
+    .tool-btn.zoomed { color: #FF6400; }
+    .tool-divider { width: 20px; height: 0.5px; background: rgba(0,0,0,0.12); }
+    .zoom-label-side {
+      font-size: 9px; font-family: 'DM Mono', monospace;
+      color: #aaa; text-align: center; line-height: 1;
     }
-    .zoom-float-label.zoomed { color: #FF6400; }
+    .zoom-label-side.zoomed { color: #FF6400; font-weight: 600; }
     /* cursor-following magnifier lens */
     .zoom-lens {
       position: absolute; z-index: 9;
@@ -273,25 +285,7 @@
       touch-action: none;
     }
     .anno-canvas.drawing { pointer-events: all; cursor: crosshair; }
-    .anno-btn {
-      position: absolute; top: 10px; left: 52px; z-index: 8;
-      background: rgba(0,0,0,0.35); border: 0.5px solid rgba(255,255,255,0.2);
-      color: rgba(255,255,255,0.8); font-size: 10px; font-family: 'Inter', sans-serif;
-      padding: 3px 8px; border-radius: 4px; cursor: pointer;
-      opacity: 0; transition: opacity 0.2s, background 0.15s;
-      display: flex; align-items: center; gap: 4px;
-    }
-    .anno-btn.active { background: rgba(255,100,0,0.7); border-color: #FF6400; color: #fff; }
-    .dropzone.loaded-a .anno-btn, .dropzone.loaded-b .anno-btn { opacity: 1; }
-    .anno-clear-btn {
-      position: absolute; top: 10px; left: 118px; z-index: 8;
-      background: rgba(0,0,0,0.35); border: 0.5px solid rgba(255,255,255,0.2);
-      color: rgba(255,255,255,0.6); font-size: 10px; font-family: 'Inter', sans-serif;
-      padding: 3px 8px; border-radius: 4px; cursor: pointer;
-      opacity: 0; transition: opacity 0.2s;
-      display: flex; align-items: center; gap: 4px;
-    }
-    .dropzone.loaded-a .anno-clear-btn, .dropzone.loaded-b .anno-clear-btn { opacity: 1; }
+
   </style>
 </head>
 <body>
@@ -384,7 +378,8 @@
         <div class="field"><label for="pname-a">Project Name</label><input id="pname-a" type="text" placeholder="e.g. Unilever Batch 3" spellcheck="false" onchange="if(_isAdmin)saveMeta('a')" /></div>
         <div class="field"><label for="pdate-a">Project Date</label><input id="pdate-a" type="date" onchange="if(_isAdmin)saveMeta('a')" /></div>
       </div>
-      <div class="dropzone" id="drop-a" onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
+      <div style="display:flex;gap:6px;flex:1;min-height:0;">
+      <div class="dropzone" id="drop-a" style="flex:1;"  onclick="adminAction('a')" ondragover="adminDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="adminDrop(event,'a')">
         <input class="file-input" id="file-a" type="file" accept="image/*" onchange="loadFile(this,'a')" />
         <div class="drop-hint" id="hint-a">
           <i class="ti ti-photo"></i>
@@ -395,12 +390,19 @@
         <div class="zoom-lens" id="zoom-lens-a"></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-a"></canvas>
-        <button class="anno-btn" id="anno-btn-a" onclick="event.stopPropagation();toggleDraw('a')"><i class="ti ti-pencil"></i> Draw</button>
-        <button class="anno-clear-btn" id="anno-clear-a" onclick="event.stopPropagation();clearAnno('a', true)"><i class="ti ti-eraser"></i> Clear</button>
         <div class="upload-overlay" id="overlay-a">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-a"></div></div>
           <span class="upload-label" id="bar-label-a">Uploading…</span>
         </div>
+      </div>
+      </div><!-- end drop+sidebar row -->
+      <div class="panel-tools" id="tools-a">
+        <button class="tool-btn" onclick="cycleZoom('a',1)" id="zoom-in-a" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
+        <span class="zoom-label-side" id="zoom-label-a">1×</span>
+        <button class="tool-btn" onclick="cycleZoom('a',-1)" id="zoom-out-a" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw"><i class="ti ti-pencil"></i></button>
+        <button class="tool-btn" onclick="clearAnno('a',true)" title="Clear drawing"><i class="ti ti-eraser"></i></button>
       </div>
       <div class="filmstrip" id="strip-a"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
@@ -431,7 +433,8 @@
         <div class="field"><label for="pname-b">Project Name</label><input id="pname-b" type="text" placeholder="e.g. Tablecrafter May" spellcheck="false" onchange="if(_isAdmin)saveMeta('b')" /></div>
         <div class="field"><label for="pdate-b">Project Date</label><input id="pdate-b" type="date" onchange="if(_isAdmin)saveMeta('b')" /></div>
       </div>
-      <div class="dropzone" id="drop-b" onclick="adminAction('b')" ondragover="adminDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="adminDrop(event,'b')">
+      <div style="display:flex;gap:6px;flex:1;min-height:0;">
+      <div class="dropzone" id="drop-b" style="flex:1;"  onclick="adminAction('b')" ondragover="adminDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="adminDrop(event,'b')">
         <input class="file-input" id="file-b" type="file" accept="image/*" onchange="loadFile(this,'b')" />
         <div class="drop-hint" id="hint-b">
           <i class="ti ti-photo"></i>
@@ -442,28 +445,23 @@
         <div class="zoom-lens" id="zoom-lens-b"></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-b"></canvas>
-        <button class="anno-btn" id="anno-btn-b" onclick="event.stopPropagation();toggleDraw('b')"><i class="ti ti-pencil"></i> Draw</button>
-        <button class="anno-clear-btn" id="anno-clear-b" onclick="event.stopPropagation();clearAnno('b', true)"><i class="ti ti-eraser"></i> Clear</button>
         <div class="upload-overlay" id="overlay-b">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-b"></div></div>
           <span class="upload-label" id="bar-label-b">Uploading…</span>
         </div>
       </div>
+      </div><!-- end drop+sidebar row -->
+      <div class="panel-tools" id="tools-b">
+        <button class="tool-btn" onclick="cycleZoom('b',1)" id="zoom-in-b" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
+        <span class="zoom-label-side" id="zoom-label-b">1×</span>
+        <button class="tool-btn" onclick="cycleZoom('b',-1)" id="zoom-out-b" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" onclick="toggleDraw('b')" id="anno-btn-b" title="Draw"><i class="ti ti-pencil"></i></button>
+        <button class="tool-btn" onclick="clearAnno('b',true)" title="Clear drawing"><i class="ti ti-eraser"></i></button>
+      </div>
       <div class="filmstrip" id="strip-b"><span class="filmstrip-empty">No photos yet</span></div>
     </div>
 
-  </div>
-
-  <!-- Floating zoom controls — fixed to bottom, shown when photo loaded -->
-  <div class="zoom-float" id="zoom-float-a" style="left:25%;">
-    <button class="zoom-float-btn" onclick="cycleZoom('a',-1)" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
-    <span class="zoom-float-label" id="zoom-label-a">1×</span>
-    <button class="zoom-float-btn" onclick="cycleZoom('a',1)" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
-  </div>
-  <div class="zoom-float" id="zoom-float-b" style="left:75%;">
-    <button class="zoom-float-btn" onclick="cycleZoom('b',-1)" title="Zoom out"><i class="ti ti-zoom-out"></i></button>
-    <span class="zoom-float-label" id="zoom-label-b">1×</span>
-    <button class="zoom-float-btn" onclick="cycleZoom('b',1)" title="Zoom in"><i class="ti ti-zoom-in"></i></button>
   </div>
 
   <div class="footer">
@@ -913,17 +911,7 @@
     if (mode === 'b'    && btns[2]) btns[2].classList.add('on');
     if (mode === 'a') { pb.classList.add('hide'); panels.classList.add('single-view'); }
     else if (mode === 'b') { pa.classList.add('hide'); panels.classList.add('single-view'); }
-    // Reposition zoom floats based on layout
-    const fa = document.getElementById('zoom-float-a');
-    const fb = document.getElementById('zoom-float-b');
-    if (mode === 'side') {
-      if (fa) fa.style.left = '25%'; if (fa) fa.style.transform = 'translateX(-50%)';
-      if (fb) fb.style.left = '75%'; if (fb) fb.style.transform = 'translateX(-50%)';
-    } else if (mode === 'a') {
-      if (fa) fa.style.left = '50%'; if (fa) fa.style.transform = 'translateX(-50%)';
-    } else if (mode === 'b') {
-      if (fb) fb.style.left = '50%'; if (fb) fb.style.transform = 'translateX(-50%)';
-    }
+
   }
 
   function setLayout(mode, btn) {
@@ -1125,10 +1113,7 @@
     const canvas = document.getElementById('anno-' + id);
     const btn    = document.getElementById('anno-btn-' + id);
     canvas.classList.toggle('drawing', _drawMode[id]);
-    btn.classList.toggle('active', _drawMode[id]);
-    btn.innerHTML = _drawMode[id]
-      ? '<i class="ti ti-pencil"></i> Drawing'
-      : '<i class="ti ti-pencil"></i> Draw';
+    if (btn) btn.classList.toggle('active', _drawMode[id]);
     if (_drawMode[id]) initCanvas(id);
   }
 
