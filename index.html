@@ -205,14 +205,14 @@
       letter-spacing: 0.06em; margin-top: 4px;
     }
 
-    /* ── Role / PIN modal ── */
-    .pin-modal {
+    /* ── PIN overlay (shown on ?role=admin before PIN confirmed) ── */
+    .pin-overlay {
       position: fixed; inset: 0; z-index: 200;
-      background: rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.96);
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
     }
-    .pin-modal.show { display: flex; }
+    .pin-overlay.hidden { display: none; }
     .pin-title { font-size: 18px; font-weight: 600; color: #222; font-family: 'Inter', sans-serif; }
     .pin-sub { font-size: 12px; color: #999; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
     .pin-dots { display: flex; gap: 10px; margin: 4px 0; }
@@ -221,12 +221,9 @@
     .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .pin-key { width: 64px; height: 64px; border-radius: 50%; border: 0.5px solid #ddd; background: #f9f9f9; font-size: 20px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; color: #222; }
     .pin-key:hover { background: #eee; }
-    .pin-key.wide { border-radius: 32px; width: 100%; grid-column: span 3; font-size: 13px; color: #888; height: 44px; }
     .pin-error { font-size: 11px; color: #E24B4A; font-family: 'Inter', sans-serif; min-height: 16px; }
     .admin-badge { font-size: 9px; background: #222; color: #fff; padding: 2px 7px; border-radius: 10px; font-family: 'Inter', sans-serif; letter-spacing: 0.06em; margin-left: 4px; vertical-align: middle; }
     .admin-only { display: none; }
-    .is-admin .admin-only { display: flex; }
-    .is-admin .admin-inline { display: inline-flex !important; }
     .admin-inline { display: none !important; }
 
     /* ── Zoom overlay ── */
@@ -246,40 +243,13 @@
 <body>
 <div class="app" id="app">
 
-  <!-- PIN modal -->
-  <div class="pin-modal" id="pin-modal">
-    <div class="pin-title">Admin Access</div>
-    <div class="pin-sub">Enter your 4-digit PIN</div>
-    <div class="pin-dots" id="pin-dots">
-      <div class="pin-dot-ind" id="pd0"></div>
-      <div class="pin-dot-ind" id="pd1"></div>
-      <div class="pin-dot-ind" id="pd2"></div>
-      <div class="pin-dot-ind" id="pd3"></div>
-    </div>
-    <div class="pin-error" id="pin-error"></div>
-    <div class="pin-grid">
-      <button class="pin-key" onclick="pinKey('1')">1</button>
-      <button class="pin-key" onclick="pinKey('2')">2</button>
-      <button class="pin-key" onclick="pinKey('3')">3</button>
-      <button class="pin-key" onclick="pinKey('4')">4</button>
-      <button class="pin-key" onclick="pinKey('5')">5</button>
-      <button class="pin-key" onclick="pinKey('6')">6</button>
-      <button class="pin-key" onclick="pinKey('7')">7</button>
-      <button class="pin-key" onclick="pinKey('8')">8</button>
-      <button class="pin-key" onclick="pinKey('9')">9</button>
-      <button class="pin-key" onclick="pinKey('back')">⌫</button>
-      <button class="pin-key" onclick="pinKey('0')">0</button>
-      <button class="pin-key" onclick="pinKey('cancel')" style="font-size:11px;color:#aaa;">✕</button>
-    </div>
-  </div>
 
 
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
       <div class="logo">Photokitchen <span>Photo Mirroring</span></div>
       <span class="admin-badge" id="admin-badge" style="display:none;">Admin</span>
-      <button id="admin-login-btn" onclick="openPin()" style="font-size:9px;color:#bbb;background:transparent;border:none;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:0.05em;padding:0;">Admin Login</button>
-      <button id="admin-logout-btn" onclick="logoutAdmin()" style="display:none;font-size:9px;color:#bbb;background:transparent;border:none;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:0.05em;padding:0;">Logout</button>
+      <span id="client-badge" style="font-size:9px;color:#bbb;font-family:Inter,sans-serif;letter-spacing:0.05em;display:none;">Client View</span>
     </div>
     <div class="controls">
       <div class="bg-group">
@@ -857,32 +827,42 @@
     else document.exitFullscreen();
   }
 
-  /* ── PIN & Role system ── */
-  const ADMIN_PIN = '0381';
-  let _pinBuffer  = '';
-  let _isAdmin    = false;
+  /* ── Role detection via URL param ── */
+  const ADMIN_PIN  = '0381';
+  const _urlRole   = new URLSearchParams(window.location.search).get('role');
+  let   _isAdmin   = false;
+  let   _pinBuffer = '';
 
-  function openPin() {
-    _pinBuffer = '';
-    updatePinDots();
-    document.getElementById('pin-error').textContent = '';
-    document.getElementById('pin-modal').classList.add('show');
+  function initRole() {
+    if (_urlRole === 'admin') {
+      // Show PIN overlay — stays until correct PIN entered
+      document.getElementById('pin-overlay').classList.remove('hidden');
+    } else {
+      // Client view — apply immediately, no PIN needed
+      document.getElementById('pin-overlay').classList.add('hidden');
+      applyRole();
+    }
   }
 
   function pinKey(k) {
-    if (k === 'cancel') { document.getElementById('pin-modal').classList.remove('show'); return; }
-    if (k === 'back')   { _pinBuffer = _pinBuffer.slice(0, -1); updatePinDots(); return; }
+    if (k === 'cancel') {
+      // Cancel on admin URL → fall back to client view
+      document.getElementById('pin-overlay').classList.add('hidden');
+      applyRole();
+      return;
+    }
+    if (k === 'back') { _pinBuffer = _pinBuffer.slice(0, -1); updatePinDots(); return; }
     if (_pinBuffer.length >= 4) return;
     _pinBuffer += k;
     updatePinDots();
     if (_pinBuffer.length === 4) {
       if (_pinBuffer === ADMIN_PIN) {
         _isAdmin = true;
-        document.getElementById('pin-modal').classList.remove('show');
+        document.getElementById('pin-overlay').classList.add('hidden');
         document.getElementById('pin-error').textContent = '';
         applyRole();
       } else {
-        document.getElementById('pin-error').textContent = 'Incorrect PIN';
+        document.getElementById('pin-error').textContent = 'Incorrect PIN — try again';
         _pinBuffer = '';
         updatePinDots();
       }
@@ -895,47 +875,39 @@
     }
   }
 
-  function logoutAdmin() {
-    _isAdmin = false;
-    applyRole();
-  }
-
   function applyRole() {
-    const app = document.getElementById('app');
-    // Toggle admin class on app
-    app.classList.toggle('is-admin', _isAdmin);
     // Admin-only elements
     document.querySelectorAll('.admin-only').forEach(el => {
-      el.style.display = _isAdmin ? (el.classList.contains('break-btn') || el.classList.contains('reset-btn') ? 'inline-flex' : 'flex') : 'none';
+      el.style.display = _isAdmin
+        ? (el.classList.contains('break-btn') || el.classList.contains('reset-btn') ? 'inline-flex' : 'flex')
+        : 'none';
     });
     document.querySelectorAll('.admin-inline').forEach(el => {
       el.style.display = _isAdmin ? 'inline-block' : 'none';
     });
-    // Client labels (show when not admin)
+    // Client labels
     document.querySelectorAll('.client-label').forEach(el => {
       el.style.display = _isAdmin ? 'none' : 'inline-block';
     });
-    // Update client labels text from selects
     ['a','b'].forEach(id => {
       const sel   = document.getElementById('label-' + id);
       const label = document.getElementById('client-label-' + id);
       if (sel && label) label.textContent = sel.value;
     });
-    // Login/logout/badge buttons
-    document.getElementById('admin-login-btn').style.display  = _isAdmin ? 'none' : 'inline-block';
-    document.getElementById('admin-logout-btn').style.display = _isAdmin ? 'inline-block' : 'none';
-    document.getElementById('admin-badge').style.display      = _isAdmin ? 'inline-block' : 'none';
-    // Fields bg visible to admin
+    // Badges
+    document.getElementById('admin-badge').style.display  = _isAdmin ? 'inline-block' : 'none';
+    document.getElementById('client-badge').style.display = _isAdmin ? 'none' : 'inline-block';
+    // Fields
     document.getElementById('fields-a').style.display = _isAdmin ? 'flex' : 'none';
     document.getElementById('fields-b').style.display = _isAdmin ? 'flex' : 'none';
-    // Layout buttons — admin only
+    // Layout buttons
     document.getElementById('layout-btns').style.display = _isAdmin ? 'flex' : 'none';
   }
 
   // Admin-gated drop actions
-  function adminAction(id)             { if (_isAdmin) triggerFile(id); }
-  function adminDragOver(e, id)        { if (_isAdmin) onDragOver(e, id); else e.preventDefault(); }
-  function adminDrop(e, id)            { if (_isAdmin) onDrop(e, id); else e.preventDefault(); }
+  function adminAction(id)      { if (_isAdmin) triggerFile(id); }
+  function adminDragOver(e, id) { if (_isAdmin) onDragOver(e, id); else e.preventDefault(); }
+  function adminDrop(e, id)     { if (_isAdmin) onDrop(e, id); else e.preventDefault(); }
 
   /* ── Zoom ── */
   const _zoomLevels = [1, 2, 3];
@@ -992,6 +964,7 @@
     });
   }
   setManilaDate();
+  initRole();
 </script>
 </body>
 </html>
