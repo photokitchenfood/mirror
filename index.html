@@ -925,10 +925,17 @@
   ['a', 'b'].forEach(id => {
     onValue(dbRef(db, 'anno/' + id), snap => {
       const dataUrl = snap.val();
-      if (typeof applyAnno === 'function') {
-        if (dataUrl) applyAnno(id, dataUrl);
-        else clearAnno(id, false);
-      }
+      // Retry until non-module functions are available
+      const tryApply = () => {
+        if (dataUrl && typeof window.applyAnno === 'function') {
+          window.applyAnno(id, dataUrl);
+        } else if (!dataUrl && typeof window.clearAnno === 'function') {
+          window.clearAnno(id, false);
+        } else {
+          setTimeout(tryApply, 100);
+        }
+      };
+      tryApply();
     });
   });
 
