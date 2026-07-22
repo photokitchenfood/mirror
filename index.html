@@ -227,23 +227,30 @@
     .admin-inline { display: none !important; }
 
     /* ── Zoom overlay ── */
+    /* zoom toggle button — top right corner, small and clean */
     .zoom-btn {
-      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
-      z-index: 6;
-      background: rgba(0,0,0,0.4); border: 0.5px solid rgba(255,255,255,0.25);
-      color: rgba(255,255,255,0.5); font-size: 22px;
-      width: 44px; height: 44px; border-radius: 50%;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.2s, color 0.15s, background 0.15s;
-      flex-direction: column; gap: 0; line-height: 1;
+      position: absolute; top: 10px; right: 12px; z-index: 8;
+      background: rgba(0,0,0,0.4); border: 0.5px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7); font-size: 11px; font-family: 'DM Mono', monospace;
+      padding: 4px 8px; border-radius: 20px; cursor: pointer;
+      display: flex; align-items: center; gap: 4px;
+      opacity: 0; transition: opacity 0.2s;
     }
-    .zoom-btn .zoom-label {
-      font-size: 9px; font-family: 'DM Mono', monospace;
-      color: rgba(255,255,255,0.7); line-height: 1; margin-top: 1px;
+    .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 0.6; }
+    .dropzone.loaded-a .zoom-btn:hover, .dropzone.loaded-b .zoom-btn:hover { opacity: 1; }
+    .zoom-btn.zoomed { color: #FF6400; border-color: #FF6400; opacity: 1 !important; }
+    /* cursor-following magnifier lens */
+    .zoom-lens {
+      position: absolute; z-index: 9;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.6);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+      overflow: hidden; pointer-events: none;
+      display: none;
+      background-repeat: no-repeat;
     }
-    .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 0.5; }
-    .dropzone.loaded-a .zoom-btn:hover, .dropzone.loaded-b .zoom-btn:hover { opacity: 1; background: rgba(0,0,0,0.6); color: #fff; }
-    .dropzone.zoomed .zoom-btn { opacity: 1; color: #FF6400; border-color: #FF6400; }
+    .zoom-lens.active { display: block; }
     .dropzone.zoomed { overflow: scroll !important; cursor: zoom-out; display: block !important; }
     .dropzone.zoomed .drop-img { position: relative !important; inset: auto !important; height: auto !important; object-fit: unset !important; display: block !important; }
 
@@ -374,10 +381,8 @@
         </div>
         <img class="drop-img" id="img-a" alt="Panel A" />
         <span class="filesize-badge" id="fsize-a"></span>
-        <button class="zoom-btn" id="zoom-btn-a" onclick="event.stopPropagation();cycleZoom('a')">
-          <i class="ti ti-zoom-in" id="zoom-icon-a"></i>
-          <span class="zoom-label" id="zoom-label-a">1×</span>
-        </button>
+        <button class="zoom-btn" id="zoom-btn-a" onclick="event.stopPropagation();cycleZoom('a')"><i class="ti ti-zoom-in"></i> <span id="zoom-label-a">1×</span></button>
+        <div class="zoom-lens" id="zoom-lens-a"></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-a"></canvas>
         <button class="anno-btn" id="anno-btn-a" onclick="event.stopPropagation();toggleDraw('a')"><i class="ti ti-pencil"></i> Draw</button>
@@ -424,10 +429,8 @@
         </div>
         <img class="drop-img" id="img-b" alt="Panel B" />
         <span class="filesize-badge" id="fsize-b"></span>
-        <button class="zoom-btn" id="zoom-btn-b" onclick="event.stopPropagation();cycleZoom('b')">
-          <i class="ti ti-zoom-in" id="zoom-icon-b"></i>
-          <span class="zoom-label" id="zoom-label-b">1×</span>
-        </button>
+        <button class="zoom-btn" id="zoom-btn-b" onclick="event.stopPropagation();cycleZoom('b')"><i class="ti ti-zoom-in"></i> <span id="zoom-label-b">1×</span></button>
+        <div class="zoom-lens" id="zoom-lens-b"></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-b"></canvas>
         <button class="anno-btn" id="anno-btn-b" onclick="event.stopPropagation();toggleDraw('b')"><i class="ti ti-pencil"></i> Draw</button>
@@ -1054,10 +1057,7 @@
         drop.scrollTop  = (drop.scrollHeight - drop.offsetHeight) / 2;
       }, 30);
     }
-    const lbl = document.getElementById('zoom-label-' + id);
-    if (lbl) lbl.textContent = level + '×';
-    if (level > 1) btn.style.color = '#FF6400';
-    else { btn.style.color = ''; }
+
   }
 
   // Reset zoom when new image loads
@@ -1083,6 +1083,9 @@
   const _drawing  = { a: false, b: false };
   const _drawMode = { a: false, b: false };
   const _lastPos  = { a: null, b: null };
+
+  window.applyAnno  = applyAnno;
+  window.clearAnno  = clearAnno;
 
   function toggleDraw(id) {
     _drawMode[id] = !_drawMode[id];
