@@ -248,7 +248,7 @@
 
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="logo">Photokitchen <span>Photo Mirroring</span></div>
+      <div class="logo" onclick="logoClick()" style="cursor:default;user-select:none;">Photokitchen <span>Photo Mirroring</span></div>
       <span class="admin-badge" id="admin-badge" style="display:none;">Admin</span>
       <span id="client-badge" style="font-size:9px;color:#bbb;font-family:Inter,sans-serif;letter-spacing:0.05em;display:none;">Client View</span>
     </div>
@@ -832,24 +832,25 @@
   const ADMIN_PIN  = '0381';
   let _isAdmin    = false;
   let _pinBuffer  = '';
-  let _keySeq     = '';  // tracks secret key sequence
 
   function initRole() {
-    // Always start as client — admin PIN triggered by typing 'pkadmin' anywhere
     applyRole();
-    // Listen for secret key sequence: type 'pkadmin' anywhere to open PIN
-    document.addEventListener('keydown', function(e) {
-      if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
-      _keySeq += e.key.toLowerCase();
-      if (_keySeq.length > 7) _keySeq = _keySeq.slice(-7);
-      if (_keySeq.endsWith('pkadmin')) {
-        _keySeq = '';
-        _pinBuffer = '';
-        updatePinDots();
-        document.getElementById('pin-error').textContent = '';
-        document.getElementById('pin-overlay').classList.add('show');
-      }
-    });
+  }
+
+  // Triple-click the logo to open admin PIN
+  let _logoClicks = 0;
+  let _logoTimer  = null;
+  function logoClick() {
+    _logoClicks++;
+    clearTimeout(_logoTimer);
+    _logoTimer = setTimeout(() => { _logoClicks = 0; }, 600);
+    if (_logoClicks >= 3) {
+      _logoClicks = 0;
+      _pinBuffer  = '';
+      updatePinDots();
+      document.getElementById('pin-error').textContent = '';
+      document.getElementById('pin-overlay').classList.add('show');
+    }
   }
 
   function pinKey(k) {
