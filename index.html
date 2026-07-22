@@ -425,7 +425,7 @@
         </div>
         <img class="drop-img" id="img-a" alt="Panel A" />
         <span class="filesize-badge" id="fsize-a"></span>
-        <div class="zoom-lens" id="zoom-lens-a"></div>
+        <div class="zoom-lens" id="zoom-lens-a"><canvas id="lens-canvas-a" style="position:absolute;inset:0;width:100%;height:100%;border-radius:50%;cursor:crosshair;"></canvas></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-a"></canvas>
         <div class="upload-overlay" id="overlay-a">
@@ -470,7 +470,7 @@
         </div>
         <img class="drop-img" id="img-b" alt="Panel B" />
         <span class="filesize-badge" id="fsize-b"></span>
-        <div class="zoom-lens" id="zoom-lens-b"></div>
+        <div class="zoom-lens" id="zoom-lens-b"><canvas id="lens-canvas-b" style="position:absolute;inset:0;width:100%;height:100%;border-radius:50%;cursor:crosshair;"></canvas></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
         <canvas class="anno-canvas" id="anno-b"></canvas>
         <div class="upload-overlay" id="overlay-b">
@@ -1180,34 +1180,118 @@
   const _lastPos  = { a: null, b: null };
 
   window.applyAnno  = applyAnno;
+
+  /* ── Render annotations on lens canvas (zoomed view) ── */
+  function renderAnnoOnLens(id, mx, my, level, rect) {
+    const lensCanvas = document.getElementById('lens-canvas-' + id);
+    const mainCanvas = document.getElementById('anno-' + id);
+    if (!lensCanvas || !mainCanvas) return;
+    const lensSize = 160;
+    lensCanvas.width  = lensSize;
+    lensCanvas.height = lensSize;
+    const ctx = lensCanvas.getContext('2d');
+    ctx.clearRect(0, 0, lensSize, lensSize);
+    // Draw the portion of the main annotation canvas that's visible in the lens
+    const srcX = (mx * mainCanvas.width  / rect.width)  - lensSize / (2 * level);
+    const srcY = (my * mainCanvas.height / rect.height) - lensSize / (2 * level);
+    const srcW = lensSize / level;
+    const srcH = lensSize / level;
+    ctx.drawImage(mainCanvas, srcX, srcY, srcW, srcH, 0, 0, lensSize, lensSize);
+  }
+
+  /* ── Draw on lens canvas and map back to main canvas ── */
+  function startLensDraw(id, e) {
+    if (!_drawMode[id]) return;
+    const lp = window['_lensPos_' + id];
+    if (!lp) return;
+    _drawing[id] = true;
+    // Map lens click to main canvas coords
+    const lensCanvas = document.getElementById('lens-canvas-' + id);
+    const lensRect   = lensCanvas.getBoundingClientRect();
+    const lx = e.clientX - lensRect.left;
+    const ly = e.clientY - lensRect.top;
+    const mainCanvas = document.getElementById('anno-' + id);
+    const mx = lp.mx + (lx - 80) / lp.level;
+    const my = lp.my + (ly - 80) / lp.level;
+    _lastPos[id] = {
+      x: mx * mainCanvas.width  / lp.rect.width,
+      y: my * mainCanvas.height / lp.rect.height
+    };
+  }
+
+  function drawOnLens(id, e) {
+    if (!_drawing[id] || !_drawMode[id]) return;
+    const lp = window['_lensPos_' + id];
+    if (!lp) return;
+    const lensCanvas = document.getElementById('lens-canvas-' + id);
+    const lensRect   = lensCanvas.getBoundingClientRect();
+    const lx = e.clientX - lensRect.left;
+    const ly = e.clientY - lensRect.top;
+    const mainCanvas = document.getElementById('anno-' + id);
+    const mx = lp.mx + (lx - 80) / lp.level;
+    const my = lp.my + (ly - 80) / lp.level;
+    const pos = {
+      x: mx * mainCanvas.width  / lp.rect.width,
+      y: my * mainCanvas.height / lp.rect.height
+    };
+    const last = _lastPos[id];
+    const ctx  = mainCanvas.getContext('2d');
+    ctx.strokeStyle = '#FF6400';
+    ctx.lineWidth   = 2;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(pos.x,  pos.y);
+    ctx.stroke();
+    _lastPos[id] = pos;
+    // Re-render lens view
+    renderAnnoOnLens(id, lp.mx, lp.my, lp.level, lp.rect);
+    if (!_drawThrottle) {
+      _drawThrottle = setTimeout(() => {
+        if (window._fbSetAnno) window._fbSetAnno(id, mainCanvas.toDataURL());
+        _drawThrottle = null;
+      }, 30);
+    }
+  }
   window.clearAnno  = clearAnno;
 
   function toggleDraw(id) {
     _drawMode[id] = !_drawMode[id];
-    const canvas = document.getElementById('anno-' + id);
-    const btn    = document.getElementById('anno-btn-' + id);
+    const canvas     = document.getElementById('anno-' + id);
+    const btn        = document.getElementById('anno-btn-' + id);
+    const lensCanvas = document.getElementById('lens-canvas-' + id);
     if (!canvas) return;
     canvas.classList.toggle('drawing', _drawMode[id]);
     if (btn) btn.classList.toggle('active', _drawMode[id]);
+    // Enable/disable lens canvas pointer events
+    if (lensCanvas) lensCanvas.style.pointerEvents = _drawMode[id] ? 'all' : 'none';
     if (_drawMode[id]) initCanvas(id);
   }
 
   function initCanvas(id) {
-    const canvas = document.getElementById('anno-' + id);
-    const drop   = document.getElementById('drop-' + id);
-    // Match canvas size to dropzone
+    const canvas     = document.getElementById('anno-' + id);
+    const drop       = document.getElementById('drop-' + id);
+    const lensCanvas = document.getElementById('lens-canvas-' + id);
     canvas.width  = drop.offsetWidth;
     canvas.height = drop.offsetHeight;
 
-    // Touch support
+    // Main canvas events (1× mode)
     canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(id, e.touches[0]); }, { passive: false });
     canvas.addEventListener('touchmove',  e => { e.preventDefault(); draw(id, e.touches[0]); },      { passive: false });
     canvas.addEventListener('touchend',   e => { stopDraw(id); },                                     { passive: false });
-    // Mouse support
     canvas.addEventListener('mousedown',  e => startDraw(id, e));
     canvas.addEventListener('mousemove',  e => { if (_drawing[id]) draw(id, e); });
     canvas.addEventListener('mouseup',    e => stopDraw(id));
     canvas.addEventListener('mouseleave', e => stopDraw(id));
+
+    // Lens canvas events (zoomed mode)
+    if (lensCanvas) {
+      lensCanvas.addEventListener('mousedown',  e => startLensDraw(id, e));
+      lensCanvas.addEventListener('mousemove',  e => { if (_drawing[id]) drawOnLens(id, e); });
+      lensCanvas.addEventListener('mouseup',    e => stopDraw(id));
+      lensCanvas.addEventListener('mouseleave', e => stopDraw(id));
+    }
   }
 
   function getPos(id, e) {
@@ -1266,14 +1350,19 @@
     const canvas = document.getElementById('anno-' + id);
     const drop   = document.getElementById('drop-' + id);
     if (!canvas) return;
-    // Ensure canvas sized correctly
     if (canvas.width !== drop.offsetWidth || canvas.height !== drop.offsetHeight) {
       canvas.width  = drop.offsetWidth;
       canvas.height = drop.offsetHeight;
     }
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // Refresh lens canvas if zoom is active
+      const lp = window['_lensPos_' + id];
+      if (lp && lp.level > 1) renderAnnoOnLens(id, lp.mx, lp.my, lp.level, lp.rect);
+    };
     img.src = dataUrl;
   }
 
