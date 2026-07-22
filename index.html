@@ -789,10 +789,13 @@
 
   /* ── Layout sync via Firebase ── */
   window._fbSetLayout = async (mode) => {
+    console.log('[PK Layout] Writing to Firebase:', mode);
     await set(dbRef(db, 'layout'), mode);
+    console.log('[PK Layout] Written successfully');
   };
   onValue(dbRef(db, 'layout'), snap => {
     const mode = snap.val() || 'side';
+    console.log('[PK Layout] Received from Firebase:', mode);
     applyLayout(mode);
   });
 
@@ -800,16 +803,30 @@
 </script>
 
 <script>
-  function setLayout(mode, btn) {
-    document.querySelectorAll('.lbtn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
+  function applyLayout(mode) {
     const pa     = document.getElementById('panel-a');
     const pb     = document.getElementById('panel-b');
     const panels = document.getElementById('panels');
     pa.classList.remove('hide'); pb.classList.remove('hide');
     panels.classList.remove('single-view');
-    if (mode === 'a')      { pb.classList.add('hide'); panels.classList.add('single-view'); }
+    // Update button states
+    const btns = document.querySelectorAll('.layout-btns .lbtn');
+    btns.forEach(b => b.classList.remove('on'));
+    if (mode === 'side' && btns[0]) btns[0].classList.add('on');
+    if (mode === 'a'    && btns[1]) btns[1].classList.add('on');
+    if (mode === 'b'    && btns[2]) btns[2].classList.add('on');
+    if (mode === 'a') { pb.classList.add('hide'); panels.classList.add('single-view'); }
     else if (mode === 'b') { pa.classList.add('hide'); panels.classList.add('single-view'); }
+  }
+
+  function setLayout(mode, btn) {
+    console.log('[PK Layout] setLayout called:', mode, '| _fbSetLayout exists:', !!window._fbSetLayout);
+    applyLayout(mode);
+    if (window._fbSetLayout) {
+      window._fbSetLayout(mode);
+    } else {
+      console.warn('[PK Layout] _fbSetLayout not ready yet!');
+    }
   }
 
   function setBg(appBg, fieldBg, fieldBorder, sw) {
