@@ -228,16 +228,52 @@
 
     /* ── Zoom overlay ── */
     .zoom-btn {
-      position: absolute; top: 10px; right: 12px; z-index: 6;
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+      z-index: 6;
+      background: rgba(0,0,0,0.4); border: 0.5px solid rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.5); font-size: 22px;
+      width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.2s, color 0.15s, background 0.15s;
+      flex-direction: column; gap: 0; line-height: 1;
+    }
+    .zoom-btn .zoom-label {
+      font-size: 9px; font-family: 'DM Mono', monospace;
+      color: rgba(255,255,255,0.7); line-height: 1; margin-top: 1px;
+    }
+    .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 0.5; }
+    .dropzone.loaded-a .zoom-btn:hover, .dropzone.loaded-b .zoom-btn:hover { opacity: 1; background: rgba(0,0,0,0.6); color: #fff; }
+    .dropzone.zoomed .zoom-btn { opacity: 1; color: #FF6400; border-color: #FF6400; }
+    .dropzone.zoomed { overflow: scroll !important; cursor: zoom-out; display: block !important; }
+    .dropzone.zoomed .drop-img { position: relative !important; inset: auto !important; height: auto !important; object-fit: unset !important; display: block !important; }
+
+    /* ── Annotation layer ── */
+    .anno-canvas {
+      position: absolute; inset: 0; z-index: 7;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      touch-action: none;
+    }
+    .anno-canvas.drawing { pointer-events: all; cursor: crosshair; }
+    .anno-btn {
+      position: absolute; top: 10px; left: 52px; z-index: 8;
       background: rgba(0,0,0,0.35); border: 0.5px solid rgba(255,255,255,0.2);
-      color: rgba(255,255,255,0.8); font-size: 10px; font-family: 'DM Mono', monospace;
+      color: rgba(255,255,255,0.8); font-size: 10px; font-family: 'Inter', sans-serif;
+      padding: 3px 8px; border-radius: 4px; cursor: pointer;
+      opacity: 0; transition: opacity 0.2s, background 0.15s;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .anno-btn.active { background: rgba(255,100,0,0.7); border-color: #FF6400; color: #fff; }
+    .dropzone.loaded-a .anno-btn, .dropzone.loaded-b .anno-btn { opacity: 1; }
+    .anno-clear-btn {
+      position: absolute; top: 10px; left: 118px; z-index: 8;
+      background: rgba(0,0,0,0.35); border: 0.5px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.6); font-size: 10px; font-family: 'Inter', sans-serif;
       padding: 3px 8px; border-radius: 4px; cursor: pointer;
       opacity: 0; transition: opacity 0.2s;
       display: flex; align-items: center; gap: 4px;
     }
-    .dropzone.loaded-a .zoom-btn, .dropzone.loaded-b .zoom-btn { opacity: 1; }
-    .dropzone.zoomed { overflow: scroll !important; cursor: zoom-out; display: block !important; }
-    .dropzone.zoomed .drop-img { position: relative !important; inset: auto !important; height: auto !important; object-fit: unset !important; display: block !important; }
+    .dropzone.loaded-a .anno-clear-btn, .dropzone.loaded-b .anno-clear-btn { opacity: 1; }
   </style>
 </head>
 <body>
@@ -338,8 +374,14 @@
         </div>
         <img class="drop-img" id="img-a" alt="Panel A" />
         <span class="filesize-badge" id="fsize-a"></span>
-        <button class="zoom-btn" id="zoom-btn-a" onclick="event.stopPropagation();cycleZoom('a')"><i class="ti ti-zoom-in"></i> 1×</button>
+        <button class="zoom-btn" id="zoom-btn-a" onclick="event.stopPropagation();cycleZoom('a')">
+          <i class="ti ti-zoom-in" id="zoom-icon-a"></i>
+          <span class="zoom-label" id="zoom-label-a">1×</span>
+        </button>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
+        <canvas class="anno-canvas" id="anno-a"></canvas>
+        <button class="anno-btn" id="anno-btn-a" onclick="event.stopPropagation();toggleDraw('a')"><i class="ti ti-pencil"></i> Draw</button>
+        <button class="anno-clear-btn" id="anno-clear-a" onclick="event.stopPropagation();clearAnno('a', true)"><i class="ti ti-eraser"></i> Clear</button>
         <div class="upload-overlay" id="overlay-a">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-a"></div></div>
           <span class="upload-label" id="bar-label-a">Uploading…</span>
@@ -382,8 +424,14 @@
         </div>
         <img class="drop-img" id="img-b" alt="Panel B" />
         <span class="filesize-badge" id="fsize-b"></span>
-        <button class="zoom-btn" id="zoom-btn-b" onclick="event.stopPropagation();cycleZoom('b')"><i class="ti ti-zoom-in"></i> 1×</button>
+        <button class="zoom-btn" id="zoom-btn-b" onclick="event.stopPropagation();cycleZoom('b')">
+          <i class="ti ti-zoom-in" id="zoom-icon-b"></i>
+          <span class="zoom-label" id="zoom-label-b">1×</span>
+        </button>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
+        <canvas class="anno-canvas" id="anno-b"></canvas>
+        <button class="anno-btn" id="anno-btn-b" onclick="event.stopPropagation();toggleDraw('b')"><i class="ti ti-pencil"></i> Draw</button>
+        <button class="anno-clear-btn" id="anno-clear-b" onclick="event.stopPropagation();clearAnno('b', true)"><i class="ti ti-eraser"></i> Clear</button>
         <div class="upload-overlay" id="overlay-b">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-b"></div></div>
           <span class="upload-label" id="bar-label-b">Uploading…</span>
@@ -609,6 +657,7 @@
     drop.classList.remove('loaded-a','loaded-b');
     drop.classList.add('loaded-' + id);
     if (typeof resetZoom === 'function') resetZoom(id);
+    if (typeof clearAnno === 'function') clearAnno(id, true);
     // Hide standby overlay on first photo — sync across all screens
     const standby = document.getElementById('standby-overlay');
     if (standby && !standby.classList.contains('hidden')) {
@@ -807,6 +856,20 @@
     });
   });
 
+  /* ── Annotation sync ── */
+  window._fbSetAnno = async (id, dataUrl) => {
+    await set(dbRef(db, 'anno/' + id), dataUrl || null);
+  };
+  ['a', 'b'].forEach(id => {
+    onValue(dbRef(db, 'anno/' + id), snap => {
+      const dataUrl = snap.val();
+      if (typeof applyAnno === 'function') {
+        if (dataUrl) applyAnno(id, dataUrl);
+        else clearAnno(id, false);
+      }
+    });
+  });
+
   window._uploadImage = uploadImage;
 </script>
 
@@ -991,7 +1054,10 @@
         drop.scrollTop  = (drop.scrollHeight - drop.offsetHeight) / 2;
       }, 30);
     }
-    btn.innerHTML = '<i class="ti ti-zoom-in"></i> ' + level + '×';
+    const lbl = document.getElementById('zoom-label-' + id);
+    if (lbl) lbl.textContent = level + '×';
+    if (level > 1) btn.style.color = '#FF6400';
+    else { btn.style.color = ''; }
   }
 
   // Reset zoom when new image loads
@@ -1012,6 +1078,116 @@
   }
   setManilaDate();
   initRole();
+
+  /* ── Annotation / Draw tool ── */
+  const _drawing  = { a: false, b: false };
+  const _drawMode = { a: false, b: false };
+  const _lastPos  = { a: null, b: null };
+
+  function toggleDraw(id) {
+    _drawMode[id] = !_drawMode[id];
+    const canvas = document.getElementById('anno-' + id);
+    const btn    = document.getElementById('anno-btn-' + id);
+    canvas.classList.toggle('drawing', _drawMode[id]);
+    btn.classList.toggle('active', _drawMode[id]);
+    btn.innerHTML = _drawMode[id]
+      ? '<i class="ti ti-pencil"></i> Drawing'
+      : '<i class="ti ti-pencil"></i> Draw';
+    if (_drawMode[id]) initCanvas(id);
+  }
+
+  function initCanvas(id) {
+    const canvas = document.getElementById('anno-' + id);
+    const drop   = document.getElementById('drop-' + id);
+    // Match canvas size to dropzone
+    canvas.width  = drop.offsetWidth;
+    canvas.height = drop.offsetHeight;
+
+    // Touch support
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(id, e.touches[0]); }, { passive: false });
+    canvas.addEventListener('touchmove',  e => { e.preventDefault(); draw(id, e.touches[0]); },      { passive: false });
+    canvas.addEventListener('touchend',   e => { stopDraw(id); },                                     { passive: false });
+    // Mouse support
+    canvas.addEventListener('mousedown',  e => startDraw(id, e));
+    canvas.addEventListener('mousemove',  e => { if (_drawing[id]) draw(id, e); });
+    canvas.addEventListener('mouseup',    e => stopDraw(id));
+    canvas.addEventListener('mouseleave', e => stopDraw(id));
+  }
+
+  function getPos(id, e) {
+    const canvas = document.getElementById('anno-' + id);
+    const rect   = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width  / rect.width),
+      y: (e.clientY - rect.top)  * (canvas.height / rect.height)
+    };
+  }
+
+  function startDraw(id, e) {
+    _drawing[id] = true;
+    _lastPos[id] = getPos(id, e);
+  }
+
+  function draw(id, e) {
+    if (!_drawing[id]) return;
+    const canvas = document.getElementById('anno-' + id);
+    const ctx    = canvas.getContext('2d');
+    const pos    = getPos(id, e);
+    const last   = _lastPos[id];
+    ctx.strokeStyle = '#FF6400';
+    ctx.lineWidth   = 2;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(pos.x,  pos.y);
+    ctx.stroke();
+    _lastPos[id] = pos;
+    // Sync to Firebase (throttled — every 50ms)
+    if (!_drawThrottle) {
+      _drawThrottle = setTimeout(() => {
+        syncAnno(id, canvas.toDataURL());
+        _drawThrottle = null;
+      }, 50);
+    }
+  }
+
+  let _drawThrottle = null;
+
+  function stopDraw(id) {
+    if (!_drawing[id]) return;
+    _drawing[id] = false;
+    const canvas = document.getElementById('anno-' + id);
+    syncAnno(id, canvas.toDataURL());
+  }
+
+  function syncAnno(id, dataUrl) {
+    if (window._fbSetAnno) window._fbSetAnno(id, dataUrl);
+  }
+
+  function applyAnno(id, dataUrl) {
+    const canvas = document.getElementById('anno-' + id);
+    const drop   = document.getElementById('drop-' + id);
+    if (!canvas) return;
+    // Ensure canvas sized correctly
+    if (canvas.width !== drop.offsetWidth || canvas.height !== drop.offsetHeight) {
+      canvas.width  = drop.offsetWidth;
+      canvas.height = drop.offsetHeight;
+    }
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+    img.src = dataUrl;
+  }
+
+  function clearAnno(id, sync) {
+    const canvas = document.getElementById('anno-' + id);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (sync && window._fbSetAnno) window._fbSetAnno(id, null);
+  }
+
 </script>
 </body>
 </html>
