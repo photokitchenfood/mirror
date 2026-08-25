@@ -1194,15 +1194,14 @@
   // used to compute the enlarged wrap size at 2x/3x. The canvas's DRAWING
   // resolution (backing store) is set separately and never touched by zoom —
   // only its on-screen CSS size changes, exactly like the <img> already does.
-  const _baseSize = { a: null, b: null };
-
-  function captureBaseSize(id) {
-    const drop = document.getElementById('drop-' + id);
-    if (!drop) return;
-    const w = drop.clientWidth;
-    const h = drop.clientHeight;
-    if (w > 0 && h > 0) _baseSize[id] = { w, h };
-  }
+  //
+  // Zoom sizing itself uses plain CSS percentage (level*100%), which the
+  // browser recomputes live on every layout pass against the dropzone's
+  // CURRENT size — no JS-cached snapshot involved. This matters especially
+  // on iPad/iPhone Safari, where the visible viewport (and therefore each
+  // panel's size) can shift as the browser's toolbar shows/hides; a cached
+  // size would silently go stale and cause drawings to drift out of
+  // alignment with the photo whenever that happened mid-session.
 
   function applyZoom(id, level) {
     _zoomState[id] = _zoomLevels.indexOf(level) !== -1 ? _zoomLevels.indexOf(level) : 0;
@@ -1210,18 +1209,14 @@
     const drop = document.getElementById('drop-' + id);
     if (!wrap || !drop) return;
 
-    if (!_baseSize[id]) captureBaseSize(id);
-    const base = _baseSize[id] || { w: drop.clientWidth, h: drop.clientHeight };
+    wrap.style.width  = (level * 100) + '%';
+    wrap.style.height = (level * 100) + '%';
 
     if (level === 1) {
-      wrap.style.width  = '100%';
-      wrap.style.height = '100%';
       drop.classList.remove('zoomed');
       drop.scrollTop  = 0;
       drop.scrollLeft = 0;
     } else {
-      wrap.style.width  = Math.round(base.w * level) + 'px';
-      wrap.style.height = Math.round(base.h * level) + 'px';
       drop.classList.add('zoomed');
       // Reading scrollWidth forces a synchronous layout, so this is accurate immediately
       drop.scrollLeft = (drop.scrollWidth  - drop.clientWidth)  / 2;
@@ -1236,13 +1231,12 @@
 
   function resetZoom(id) {
     _zoomState[id] = 0;
-    _baseSize[id]  = null;
     applyZoom(id, 1);
-    // Re-capture base size now that the new photo is laid out, and size the
-    // canvas drawing resolution to match — this is the ONE place canvas
-    // backing-store size is set, so drawings never get wiped by zooming.
+    // Size the canvas drawing resolution fresh for this new photo — this is
+    // the ONE place canvas backing-store size is set, so drawings never get
+    // wiped by zooming, and it's always taken from the panel's live size at
+    // the moment the photo loads (not cached, not reused across photos).
     requestAnimationFrame(() => {
-      captureBaseSize(id);
       sizeCanvasToBase(id);
     });
     if (window._fbSetZoom) window._fbSetZoom(id, 1);
@@ -1337,15 +1331,21 @@
   });
 
   // Sets the canvas DRAWING resolution (backing store) to match the panel's
-  // 1x base size. Called once per photo — never on zoom, so drawings are
-  // never wiped or resized mid-session.
+  // CURRENT live size. Called once per photo — never on zoom, so drawings
+  // are never wiped or resized mid-session. Reads drop.clientWidth/Height
+  // directly (not cached) since the dropzone's own box is never affected by
+  // zoom — only its child .zoom-wrap changes size — so this is always safe
+  // and accurate to read fresh, including right after a viewport change.
   function sizeCanvasToBase(id) {
     const canvas = document.getElementById('anno-' + id);
-    const base   = _baseSize[id];
-    if (!canvas || !base || base.w <= 0 || base.h <= 0) return;
-    if (canvas.width === base.w && canvas.height === base.h) return;
-    canvas.width  = base.w;
-    canvas.height = base.h;
+    const drop   = document.getElementById('drop-' + id);
+    if (!canvas || !drop) return;
+    const w = drop.clientWidth;
+    const h = drop.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    if (canvas.width === w && canvas.height === h) return;
+    canvas.width  = w;
+    canvas.height = h;
     // Redraw whatever was already synced, since resizing clears the canvas
     if (_lastAnnoUrl[id]) redrawAnno(id, _lastAnnoUrl[id]);
   }
@@ -1354,7 +1354,6 @@
     const canvas = document.getElementById('anno-' + id);
     if (!canvas || canvas.dataset.bound) return;
     canvas.dataset.bound = '1';
-    if (!_baseSize[id]) captureBaseSize(id);
     sizeCanvasToBase(id);
     canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(id, e.touches[0]); }, { passive: false });
     canvas.addEventListener('touchmove',  e => { e.preventDefault(); draw(id, e.touches[0]); },      { passive: false });
@@ -1438,8 +1437,7 @@
     if (!canvas) return;
     // Make sure this screen's canvas has a valid backing store before drawing
     // into it — but never resize based on the sender's zoom level.
-    if ((canvas.width === 0 || canvas.height === 0)) {
-      if (!_baseSize[id]) captureBaseSize(id);
+    if (canvas.width === 0 || canvas.height === 0) {
       sizeCanvasToBase(id);
     }
     redrawAnno(id, dataUrl);
