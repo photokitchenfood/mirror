@@ -96,7 +96,7 @@
     .drop-hint i { font-size: 32px; color: #2e2e2e; }
     .drop-hint p { font-size: 12px; color: #3a3a3a; line-height: 1.7; }
     .drop-hint span { font-size: 10px; color: #2e2e2e; display: block; }
-    .drop-img { width: 100%; height: 100%; object-fit: contain; display: none; position: absolute; inset: 0; z-index: 1; }
+    .drop-img { width: 100%; height: 100%; object-fit: contain; display: none; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
     .file-input { display: none; }
 
     /* file size badge */
@@ -262,22 +262,15 @@
       color: #aaa; text-align: center; line-height: 1;
     }
     .zoom-label-side.zoomed { color: #FF6400; font-weight: 600; }
-    /* cursor-following magnifier lens */
-    .zoom-lens {
-      position: absolute; z-index: 9;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.6);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-      overflow: hidden; pointer-events: none;
-      display: none;
-      background-repeat: no-repeat;
+    /* ── Zoom wrap — image + canvas scale and scroll together ── */
+    .zoom-wrap {
+      position: relative;
+      width: 100%; height: 100%;
+      transition: width 0.15s ease, height 0.15s ease;
     }
-    .zoom-lens.active { display: block; }
-    .dropzone.zoomed { overflow: scroll !important; cursor: zoom-out; display: block !important; }
-    .dropzone.zoomed .drop-img { position: relative !important; inset: auto !important; height: auto !important; object-fit: unset !important; display: block !important; }
+    .dropzone.zoomed { overflow: auto; cursor: default; align-items: flex-start; justify-content: flex-start; }
 
-    /* ── Annotation layer ── */
+    /* ── Annotation layer — always overlays image exactly, at any zoom ── */
     .anno-canvas {
       position: absolute; inset: 0; z-index: 7;
       width: 100%; height: 100%;
@@ -423,11 +416,12 @@
           <i class="ti ti-photo"></i>
           <p>Drop photo or screenshot here<span>or click to browse</span></p>
         </div>
-        <img class="drop-img" id="img-a" alt="Panel A" />
+        <div class="zoom-wrap" id="zoom-wrap-a">
+          <img class="drop-img" id="img-a" alt="Panel A" />
+          <canvas class="anno-canvas" id="anno-a"></canvas>
+        </div>
         <span class="filesize-badge" id="fsize-a"></span>
-        <div class="zoom-lens" id="zoom-lens-a"><canvas id="lens-canvas-a" style="position:absolute;inset:0;width:100%;height:100%;border-radius:50%;cursor:crosshair;"></canvas></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('a')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
-        <canvas class="anno-canvas" id="anno-a"></canvas>
         <div class="upload-overlay" id="overlay-a">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-a"></div></div>
           <span class="upload-label" id="bar-label-a">Uploading…</span>
@@ -468,11 +462,12 @@
           <i class="ti ti-photo"></i>
           <p>Drop photo or screenshot here<span>or click to browse</span></p>
         </div>
-        <img class="drop-img" id="img-b" alt="Panel B" />
+        <div class="zoom-wrap" id="zoom-wrap-b">
+          <img class="drop-img" id="img-b" alt="Panel B" />
+          <canvas class="anno-canvas" id="anno-b"></canvas>
+        </div>
         <span class="filesize-badge" id="fsize-b"></span>
-        <div class="zoom-lens" id="zoom-lens-b"><canvas id="lens-canvas-b" style="position:absolute;inset:0;width:100%;height:100%;border-radius:50%;cursor:crosshair;"></canvas></div>
         <button class="clear-photo-btn admin-only" onclick="event.stopPropagation();clearPanel('b')" style="display:none;"><i class="ti ti-trash"></i> Clear photo</button>
-        <canvas class="anno-canvas" id="anno-b"></canvas>
         <div class="upload-overlay" id="overlay-b">
           <div class="upload-bar-wrap"><div class="upload-bar" id="bar-b"></div></div>
           <span class="upload-label" id="bar-label-b">Uploading…</span>
@@ -1107,9 +1102,10 @@
   function adminDragOver(e, id) { if (_isAdmin) onDragOver(e, id); else e.preventDefault(); }
   function adminDrop(e, id)     { if (_isAdmin) onDrop(e, id); else e.preventDefault(); }
 
-  /* ── Zoom ── */
+  /* ── Zoom (Option A — true scaling, canvas + image scale & scroll together) ── */
   const _zoomLevels = [1, 2, 3];
   const _zoomState  = { a: 0, b: 0 };
+  const _lastAnnoUrl = { a: null, b: null };
 
   function cycleZoom(id, dir) {
     const cur  = _zoomState[id] || 0;
@@ -1122,28 +1118,45 @@
 
   function applyZoom(id, level) {
     _zoomState[id] = _zoomLevels.indexOf(level) !== -1 ? _zoomLevels.indexOf(level) : 0;
-    const img  = document.getElementById('img-' + id);
+    const wrap = document.getElementById('zoom-wrap-' + id);
     const drop = document.getElementById('drop-' + id);
-    if (!img || !drop) return;
+    const canvas = document.getElementById('anno-' + id);
+    if (!wrap || !drop || !canvas) return;
+
     if (level === 1) {
-      img.style.cssText = 'width:100%;height:100%;object-fit:contain;position:absolute;inset:0;display:block;';
+      wrap.style.width  = '100%';
+      wrap.style.height = '100%';
       drop.classList.remove('zoomed');
       drop.scrollTop  = 0;
       drop.scrollLeft = 0;
     } else {
-      const naturalW = img.naturalWidth  || drop.offsetWidth;
-      const naturalH = img.naturalHeight || drop.offsetHeight;
-      img.style.cssText = 'width:' + (naturalW * level) + 'px;height:' + (naturalH * level) + 'px;object-fit:unset;position:relative;inset:auto;display:block;flex-shrink:0;';
+      wrap.style.width  = (level * 100) + '%';
+      wrap.style.height = (level * 100) + '%';
       drop.classList.add('zoomed');
-      setTimeout(() => {
-        drop.scrollLeft = (drop.scrollWidth  - drop.offsetWidth)  / 2;
-        drop.scrollTop  = (drop.scrollHeight - drop.offsetHeight) / 2;
-      }, 30);
     }
 
+    // Resize canvas backing store to match new wrap pixel size, then redraw last annotation
+    requestAnimationFrame(() => {
+      const w = wrap.offsetWidth;
+      const h = wrap.offsetHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width  = w;
+        canvas.height = h;
+        if (_lastAnnoUrl[id]) redrawAnno(id, _lastAnnoUrl[id]);
+      }
+      if (level > 1) {
+        // Centre scroll on the middle of the enlarged image
+        drop.scrollLeft = (drop.scrollWidth  - drop.offsetWidth)  / 2;
+        drop.scrollTop  = (drop.scrollHeight - drop.offsetHeight) / 2;
+      }
+    });
+
+    const lbl  = document.getElementById('zoom-label-' + id);
+    if (lbl) { lbl.textContent = level + '×'; lbl.classList.toggle('zoomed', level > 1); }
+    const zout = document.getElementById('zoom-out-' + id);
+    if (zout) zout.style.opacity = level === 1 ? '0.3' : '1';
   }
 
-  // Reset zoom when new image loads
   function resetZoom(id) {
     applyZoom(id, 1);
     if (window._fbSetZoom) window._fbSetZoom(id, 1);
@@ -1174,109 +1187,35 @@
   ['a','b'].forEach(updateDateDisplay);
   initRole();
 
-  /* ── Annotation / Draw tool ── */
+  /* ── Annotation / Draw tool — always draws directly on the canvas, at any zoom level ── */
   const _drawing  = { a: false, b: false };
   const _drawMode = { a: false, b: false };
   const _lastPos  = { a: null, b: null };
+  let   _drawThrottle = null;
 
-  window.applyAnno  = applyAnno;
-
-  /* ── Render annotations on lens canvas (zoomed view) ── */
-  function renderAnnoOnLens(id, mx, my, level, rect) {
-    const lensCanvas = document.getElementById('lens-canvas-' + id);
-    const mainCanvas = document.getElementById('anno-' + id);
-    if (!lensCanvas || !mainCanvas) return;
-    const lensSize = 160;
-    lensCanvas.width  = lensSize;
-    lensCanvas.height = lensSize;
-    const ctx = lensCanvas.getContext('2d');
-    ctx.clearRect(0, 0, lensSize, lensSize);
-    // Draw the portion of the main annotation canvas that's visible in the lens
-    const srcX = (mx * mainCanvas.width  / rect.width)  - lensSize / (2 * level);
-    const srcY = (my * mainCanvas.height / rect.height) - lensSize / (2 * level);
-    const srcW = lensSize / level;
-    const srcH = lensSize / level;
-    ctx.drawImage(mainCanvas, srcX, srcY, srcW, srcH, 0, 0, lensSize, lensSize);
-  }
-
-  /* ── Draw on lens canvas and map back to main canvas ── */
-  function startLensDraw(id, e) {
-    if (!_drawMode[id]) return;
-    const lp = window['_lensPos_' + id];
-    if (!lp) return;
-    _drawing[id] = true;
-    // Map lens click to main canvas coords
-    const lensCanvas = document.getElementById('lens-canvas-' + id);
-    const lensRect   = lensCanvas.getBoundingClientRect();
-    const lx = e.clientX - lensRect.left;
-    const ly = e.clientY - lensRect.top;
-    const mainCanvas = document.getElementById('anno-' + id);
-    const mx = lp.mx + (lx - 80) / lp.level;
-    const my = lp.my + (ly - 80) / lp.level;
-    _lastPos[id] = {
-      x: mx * mainCanvas.width  / lp.rect.width,
-      y: my * mainCanvas.height / lp.rect.height
-    };
-  }
-
-  function drawOnLens(id, e) {
-    if (!_drawing[id] || !_drawMode[id]) return;
-    const lp = window['_lensPos_' + id];
-    if (!lp) return;
-    const lensCanvas = document.getElementById('lens-canvas-' + id);
-    const lensRect   = lensCanvas.getBoundingClientRect();
-    const lx = e.clientX - lensRect.left;
-    const ly = e.clientY - lensRect.top;
-    const mainCanvas = document.getElementById('anno-' + id);
-    const mx = lp.mx + (lx - 80) / lp.level;
-    const my = lp.my + (ly - 80) / lp.level;
-    const pos = {
-      x: mx * mainCanvas.width  / lp.rect.width,
-      y: my * mainCanvas.height / lp.rect.height
-    };
-    const last = _lastPos[id];
-    const ctx  = mainCanvas.getContext('2d');
-    ctx.strokeStyle = '#FF6400';
-    ctx.lineWidth   = 2;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(pos.x,  pos.y);
-    ctx.stroke();
-    _lastPos[id] = pos;
-    // Re-render lens view
-    renderAnnoOnLens(id, lp.mx, lp.my, lp.level, lp.rect);
-    if (!_drawThrottle) {
-      _drawThrottle = setTimeout(() => {
-        if (window._fbSetAnno) window._fbSetAnno(id, mainCanvas.toDataURL());
-        _drawThrottle = null;
-      }, 30);
-    }
-  }
-  window.clearAnno  = clearAnno;
+  window.applyAnno = applyAnno;
+  window.clearAnno = clearAnno;
 
   function toggleDraw(id) {
     _drawMode[id] = !_drawMode[id];
-    const canvas     = document.getElementById('anno-' + id);
-    const btn        = document.getElementById('anno-btn-' + id);
-    const lensCanvas = document.getElementById('lens-canvas-' + id);
+    const canvas = document.getElementById('anno-' + id);
+    const btn    = document.getElementById('anno-btn-' + id);
     if (!canvas) return;
     canvas.classList.toggle('drawing', _drawMode[id]);
     if (btn) btn.classList.toggle('active', _drawMode[id]);
-    // Enable/disable lens canvas pointer events
-    if (lensCanvas) lensCanvas.style.pointerEvents = _drawMode[id] ? 'all' : 'none';
     if (_drawMode[id]) initCanvas(id);
   }
 
   function initCanvas(id) {
-    const canvas     = document.getElementById('anno-' + id);
-    const drop       = document.getElementById('drop-' + id);
-    const lensCanvas = document.getElementById('lens-canvas-' + id);
-    canvas.width  = drop.offsetWidth;
-    canvas.height = drop.offsetHeight;
-
-    // Main canvas events (1× mode)
+    const canvas = document.getElementById('anno-' + id);
+    const wrap   = document.getElementById('zoom-wrap-' + id);
+    if (!canvas || !wrap || canvas.dataset.bound) return;
+    canvas.dataset.bound = '1';
+    // Ensure backing store matches current displayed size
+    if (canvas.width !== wrap.offsetWidth || canvas.height !== wrap.offsetHeight) {
+      canvas.width  = wrap.offsetWidth;
+      canvas.height = wrap.offsetHeight;
+    }
     canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(id, e.touches[0]); }, { passive: false });
     canvas.addEventListener('touchmove',  e => { e.preventDefault(); draw(id, e.touches[0]); },      { passive: false });
     canvas.addEventListener('touchend',   e => { stopDraw(id); },                                     { passive: false });
@@ -1284,16 +1223,10 @@
     canvas.addEventListener('mousemove',  e => { if (_drawing[id]) draw(id, e); });
     canvas.addEventListener('mouseup',    e => stopDraw(id));
     canvas.addEventListener('mouseleave', e => stopDraw(id));
-
-    // Lens canvas events (zoomed mode)
-    if (lensCanvas) {
-      lensCanvas.addEventListener('mousedown',  e => startLensDraw(id, e));
-      lensCanvas.addEventListener('mousemove',  e => { if (_drawing[id]) drawOnLens(id, e); });
-      lensCanvas.addEventListener('mouseup',    e => stopDraw(id));
-      lensCanvas.addEventListener('mouseleave', e => stopDraw(id));
-    }
   }
 
+  // Coordinates map correctly at any zoom because canvas backing store
+  // always equals the actual rendered (possibly scaled) pixel size.
   function getPos(id, e) {
     const canvas = document.getElementById('anno-' + id);
     const rect   = canvas.getBoundingClientRect();
@@ -1307,8 +1240,6 @@
     _drawing[id] = true;
     _lastPos[id] = getPos(id, e);
   }
-
-  let _drawThrottle = null;
 
   function draw(id, e) {
     if (!_drawing[id]) return;
@@ -1325,10 +1256,11 @@
     ctx.lineTo(pos.x,  pos.y);
     ctx.stroke();
     _lastPos[id] = pos;
-    // Sync every stroke segment — throttled to 30ms for smooth real-time mirror
     if (!_drawThrottle) {
       _drawThrottle = setTimeout(() => {
-        if (window._fbSetAnno) window._fbSetAnno(id, canvas.toDataURL());
+        const url = canvas.toDataURL();
+        _lastAnnoUrl[id] = url;
+        if (window._fbSetAnno) window._fbSetAnno(id, url);
         _drawThrottle = null;
       }, 30);
     }
@@ -1340,33 +1272,39 @@
     clearTimeout(_drawThrottle);
     _drawThrottle = null;
     const canvas = document.getElementById('anno-' + id);
-    // Final sync on mouseup
-    if (window._fbSetAnno) window._fbSetAnno(id, canvas.toDataURL());
+    const url = canvas.toDataURL();
+    _lastAnnoUrl[id] = url;
+    if (window._fbSetAnno) window._fbSetAnno(id, url);
   }
 
-
-
-  function applyAnno(id, dataUrl) {
+  // Redraw stored annotation onto the (possibly just-resized) canvas
+  function redrawAnno(id, dataUrl) {
     const canvas = document.getElementById('anno-' + id);
-    const drop   = document.getElementById('drop-' + id);
-    if (!canvas) return;
-    if (canvas.width !== drop.offsetWidth || canvas.height !== drop.offsetHeight) {
-      canvas.width  = drop.offsetWidth;
-      canvas.height = drop.offsetHeight;
-    }
+    if (!canvas || !dataUrl) return;
     const ctx = canvas.getContext('2d');
     const img = new Image();
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      // Refresh lens canvas if zoom is active
-      const lp = window['_lensPos_' + id];
-      if (lp && lp.level > 1) renderAnnoOnLens(id, lp.mx, lp.my, lp.level, lp.rect);
     };
     img.src = dataUrl;
   }
 
+  // Called when Firebase pushes a new annotation state (from either screen)
+  function applyAnno(id, dataUrl) {
+    _lastAnnoUrl[id] = dataUrl;
+    const wrap   = document.getElementById('zoom-wrap-' + id);
+    const canvas = document.getElementById('anno-' + id);
+    if (!canvas || !wrap) return;
+    if (canvas.width !== wrap.offsetWidth || canvas.height !== wrap.offsetHeight) {
+      canvas.width  = wrap.offsetWidth;
+      canvas.height = wrap.offsetHeight;
+    }
+    redrawAnno(id, dataUrl);
+  }
+
   function clearAnno(id, sync) {
+    _lastAnnoUrl[id] = null;
     const canvas = document.getElementById('anno-' + id);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
