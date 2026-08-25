@@ -958,7 +958,10 @@
   ['a', 'b'].forEach(id => {
     onValue(dbRef(db, 'anno/' + id), snap => {
       const dataUrl = snap.val();
-      // Retry until non-module functions are available
+      // Skip applying our own echo while we're actively drawing locally —
+      // otherwise the round-trip snapshot overwrites the live stroke and
+      // erases the last few pixels, making lines look broken/dashed.
+      if (typeof window.isDrawingLocally === 'function' && window.isDrawingLocally(id)) return;
       const tryApply = () => {
         if (dataUrl && typeof window.applyAnno === 'function') {
           window.applyAnno(id, dataUrl);
@@ -1141,7 +1144,7 @@
   function adminDrop(e, id)     { if (_isAdmin) onDrop(e, id); else e.preventDefault(); }
 
   /* ── Zoom (Option A — true scaling, canvas + image scale & scroll together) ── */
-  const _zoomLevels = [1, 2, 2.5];
+  const _zoomLevels = [1, 2, 3];
   const _zoomState  = { a: 0, b: 0 };
   const _lastAnnoUrl = { a: null, b: null };
 
@@ -1239,6 +1242,7 @@
 
   window.applyAnno = applyAnno;
   window.clearAnno = clearAnno;
+  window.isDrawingLocally = (id) => !!_drawing[id];
 
   const _lineWidth = { a: 2, b: 2 };
 
