@@ -342,6 +342,14 @@
     .thickness-opt:hover { background: #f2f2f2; }
     .thickness-opt.active { background: #eef0ff; }
     .thickness-opt span { border-radius: 50%; background: #111; display: block; }
+    .pop-divider { width: 1px; height: 24px; background: #e5e5e5; }
+    .color-opt {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid transparent; cursor: pointer;
+      padding: 0; transition: border-color 0.15s, transform 0.15s;
+    }
+    .color-opt:hover { transform: scale(1.1); }
+    .color-opt.active { border-color: #111; }
   </style>
 </head>
 <body>
@@ -513,6 +521,10 @@
         <span class="cv-icon">✏️</span> Draw
       </button>
       <div class="thickness-pop" id="thickness-pop-a" onclick="event.stopPropagation()">
+        <button class="color-opt" type="button" data-c="#2FFF33" onclick="event.stopPropagation();setLineColor('a','#2FFF33')" style="background:#2FFF33;"></button>
+        <button class="color-opt" type="button" data-c="#FFE91F" onclick="event.stopPropagation();setLineColor('a','#FFE91F')" style="background:#FFE91F;"></button>
+        <button class="color-opt" type="button" data-c="#2A21FF" onclick="event.stopPropagation();setLineColor('a','#2A21FF')" style="background:#2A21FF;"></button>
+        <div class="pop-divider"></div>
         <button class="thickness-opt" type="button" data-w="2" onclick="event.stopPropagation();setLineWidth('a',2)"><span style="width:6px;height:6px;"></span></button>
         <button class="thickness-opt" type="button" data-w="3" onclick="event.stopPropagation();setLineWidth('a',3)"><span style="width:9px;height:9px;"></span></button>
         <button class="thickness-opt" type="button" data-w="4" onclick="event.stopPropagation();setLineWidth('a',4)"><span style="width:12px;height:12px;"></span></button>
@@ -530,6 +542,10 @@
         <span class="cv-icon">✏️</span> Draw
       </button>
       <div class="thickness-pop" id="thickness-pop-b" onclick="event.stopPropagation()">
+        <button class="color-opt" type="button" data-c="#2FFF33" onclick="event.stopPropagation();setLineColor('b','#2FFF33')" style="background:#2FFF33;"></button>
+        <button class="color-opt" type="button" data-c="#FFE91F" onclick="event.stopPropagation();setLineColor('b','#FFE91F')" style="background:#FFE91F;"></button>
+        <button class="color-opt" type="button" data-c="#2A21FF" onclick="event.stopPropagation();setLineColor('b','#2A21FF')" style="background:#2A21FF;"></button>
+        <div class="pop-divider"></div>
         <button class="thickness-opt" type="button" data-w="2" onclick="event.stopPropagation();setLineWidth('b',2)"><span style="width:6px;height:6px;"></span></button>
         <button class="thickness-opt" type="button" data-w="3" onclick="event.stopPropagation();setLineWidth('b',3)"><span style="width:9px;height:9px;"></span></button>
         <button class="thickness-opt" type="button" data-w="4" onclick="event.stopPropagation();setLineWidth('b',4)"><span style="width:12px;height:12px;"></span></button>
@@ -1253,6 +1269,7 @@
   window.isDrawingLocally = (id) => !!_drawing[id];
 
   const _lineWidth = { a: 2, b: 2 };
+  const _lineColor = { a: '#2FFF33', b: '#2FFF33' };
 
   function toggleDraw(id) {
     _drawMode[id] = !_drawMode[id];
@@ -1265,20 +1282,28 @@
     if (pop) pop.classList.toggle('show', _drawMode[id]);
     if (_drawMode[id]) {
       initCanvas(id);
-      updateThicknessUI(id);
+      updatePenOptionsUI(id);
     }
   }
 
   function setLineWidth(id, px) {
     _lineWidth[id] = px;
-    updateThicknessUI(id);
+    updatePenOptionsUI(id);
   }
 
-  function updateThicknessUI(id) {
+  function setLineColor(id, color) {
+    _lineColor[id] = color;
+    updatePenOptionsUI(id);
+  }
+
+  function updatePenOptionsUI(id) {
     const pop = document.getElementById('thickness-pop-' + id);
     if (!pop) return;
     pop.querySelectorAll('.thickness-opt').forEach(opt => {
       opt.classList.toggle('active', parseInt(opt.dataset.w) === _lineWidth[id]);
+    });
+    pop.querySelectorAll('.color-opt').forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.c === _lineColor[id]);
     });
   }
 
@@ -1348,7 +1373,7 @@
     const ctx    = canvas.getContext('2d');
     const pos    = getPos(id, e);
     const last   = _lastPos[id];
-    ctx.strokeStyle = '#FF6400';
+    ctx.strokeStyle = _lineColor[id] || '#2FFF33';
     ctx.lineWidth   = _lineWidth[id] || 2;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
