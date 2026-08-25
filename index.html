@@ -309,13 +309,13 @@
       color: #111; min-width: 22px; text-align: center;
     }
     .cv-divider { width: 1px; height: 22px; background: #e5e5e5; margin: 0 4px; }
+    .cv-draw-wrap { position: relative; display: flex; }
     .cv-label-btn {
       display: flex; align-items: center; gap: 5px;
       padding: 6px 12px; border-radius: 18px; border: none;
       background: transparent; color: #111;
       font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
       cursor: pointer; transition: background 0.15s, color 0.15s;
-      position: relative;
     }
     .cv-label-btn:hover { background: #f2f2f2; }
     .cv-label-btn.active { background: #111; color: #fff; }
@@ -506,14 +506,16 @@
     <span class="cv-zoom-label" id="zoom-label-a">1×</span>
     <button class="cv-icon-btn" onclick="cycleZoom('a',1)" id="zoom-in-a" title="Zoom in">＋</button>
     <div class="cv-divider"></div>
-    <button class="cv-label-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw">
-      <span class="cv-icon">✏️</span> Draw
+    <div class="cv-draw-wrap">
+      <button class="cv-label-btn" onclick="toggleDraw('a')" id="anno-btn-a" title="Draw">
+        <span class="cv-icon">✏️</span> Draw
+      </button>
       <div class="thickness-pop" id="thickness-pop-a" onclick="event.stopPropagation()">
-        <button class="thickness-opt" data-w="2" onclick="event.stopPropagation();setLineWidth('a',2)"><span style="width:6px;height:6px;"></span></button>
-        <button class="thickness-opt" data-w="3" onclick="event.stopPropagation();setLineWidth('a',3)"><span style="width:9px;height:9px;"></span></button>
-        <button class="thickness-opt" data-w="4" onclick="event.stopPropagation();setLineWidth('a',4)"><span style="width:12px;height:12px;"></span></button>
+        <button class="thickness-opt" type="button" data-w="2" onclick="event.stopPropagation();setLineWidth('a',2)"><span style="width:6px;height:6px;"></span></button>
+        <button class="thickness-opt" type="button" data-w="3" onclick="event.stopPropagation();setLineWidth('a',3)"><span style="width:9px;height:9px;"></span></button>
+        <button class="thickness-opt" type="button" data-w="4" onclick="event.stopPropagation();setLineWidth('a',4)"><span style="width:12px;height:12px;"></span></button>
       </div>
-    </button>
+    </div>
     <button class="cv-label-btn" onclick="clearAnno('a',true)" title="Clear"><span class="cv-icon">🧹</span> Clear</button>
   </div>
   <div class="cv-toolbar" id="cv-toolbar-b">
@@ -521,14 +523,16 @@
     <span class="cv-zoom-label" id="zoom-label-b">1×</span>
     <button class="cv-icon-btn" onclick="cycleZoom('b',1)" id="zoom-in-b" title="Zoom in">＋</button>
     <div class="cv-divider"></div>
-    <button class="cv-label-btn" onclick="toggleDraw('b')" id="anno-btn-b" title="Draw">
-      <span class="cv-icon">✏️</span> Draw
+    <div class="cv-draw-wrap">
+      <button class="cv-label-btn" onclick="toggleDraw('b')" id="anno-btn-b" title="Draw">
+        <span class="cv-icon">✏️</span> Draw
+      </button>
       <div class="thickness-pop" id="thickness-pop-b" onclick="event.stopPropagation()">
-        <button class="thickness-opt" data-w="2" onclick="event.stopPropagation();setLineWidth('b',2)"><span style="width:6px;height:6px;"></span></button>
-        <button class="thickness-opt" data-w="3" onclick="event.stopPropagation();setLineWidth('b',3)"><span style="width:9px;height:9px;"></span></button>
-        <button class="thickness-opt" data-w="4" onclick="event.stopPropagation();setLineWidth('b',4)"><span style="width:12px;height:12px;"></span></button>
+        <button class="thickness-opt" type="button" data-w="2" onclick="event.stopPropagation();setLineWidth('b',2)"><span style="width:6px;height:6px;"></span></button>
+        <button class="thickness-opt" type="button" data-w="3" onclick="event.stopPropagation();setLineWidth('b',3)"><span style="width:9px;height:9px;"></span></button>
+        <button class="thickness-opt" type="button" data-w="4" onclick="event.stopPropagation();setLineWidth('b',4)"><span style="width:12px;height:12px;"></span></button>
       </div>
-    </button>
+    </div>
     <button class="cv-label-btn" onclick="clearAnno('b',true)" title="Clear"><span class="cv-icon">🧹</span> Clear</button>
   </div>
 
@@ -1137,7 +1141,7 @@
   function adminDrop(e, id)     { if (_isAdmin) onDrop(e, id); else e.preventDefault(); }
 
   /* ── Zoom (Option A — true scaling, canvas + image scale & scroll together) ── */
-  const _zoomLevels = [1, 2, 3];
+  const _zoomLevels = [1, 2, 2.5];
   const _zoomState  = { a: 0, b: 0 };
   const _lastAnnoUrl = { a: null, b: null };
 
@@ -1272,7 +1276,8 @@
       const btn = document.getElementById('anno-btn-' + id);
       const pop = document.getElementById('thickness-pop-' + id);
       if (!btn || !pop) return;
-      if (_drawMode[id] && !btn.contains(e.target)) {
+      const wrap = btn.closest('.cv-draw-wrap') || btn;
+      if (_drawMode[id] && !wrap.contains(e.target)) {
         // Keep draw mode active (so user can keep drawing), just hide the popover
         pop.classList.remove('show');
       }
